@@ -1,0 +1,3553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buddies Wrapped — Chat Analytics & Leaderboard</title>
+  <meta name="description" content="An unconstrained, ultra-expressive Spotify-Wrapped-style retrospective for your Facebook Messenger chats. 100% client-side, private, and boundless.">
+
+  <!-- Core Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <!-- Vercel Web Analytics -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+
+  <!-- Typography -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/anthropic-fonts@1.1.0/cdn/v1/css/all.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..800;1,6..72,300..800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --font-serif: 'Anthropic Serif', 'Newsreader', Georgia, serif;
+      --font-sans: 'Anthropic Sans', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'Anthropic Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+      --bg: #09090B;
+      --bg-elevated: #111114;
+      --surface: #17171C;
+      --surface-glass: rgba(23, 23, 28, 0.75);
+      --surface-border: rgba(255, 255, 255, 0.09);
+      
+      --text: #FAF9F5;
+      --text-muted: #A3A199;
+      --text-subtle: #6E6C65;
+
+      --primary: #E07A5F;
+      --primary-hover: #E88B72;
+      --primary-container: rgba(224, 122, 95, 0.12);
+
+      --accent-amber: #F4A261;
+      --accent-mint: #2A9D8F;
+      --accent-cyan: #38BDF8;
+      --accent-purple: #A78BFA;
+      --accent-rose: #FB7185;
+    }
+
+    /* STRICT ZERO SHADOW & ZERO BORDER-RADIUS ENFORCEMENT ACROSS THE ENTIRE APP */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      box-shadow: none !important;
+      text-shadow: none !important;
+      border-radius: 0 !important;
+    }
+
+    html, body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      width: 100%;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient Background Mesh */
+    /* Remove default datalist/picker arrows */
+    input::-webkit-calendar-picker-indicator,
+    input::-webkit-list-button {
+      display: none !important;
+      -webkit-appearance: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    .ambient-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .ambient-orb-1 {
+      position: absolute;
+      top: -20vh;
+      left: 10vw;
+      width: 70vw;
+      height: 70vw;
+      max-width: 900px;
+      max-height: 900px;
+      background: radial-gradient(circle, rgba(224, 122, 95, 0.15) 0%, rgba(224, 122, 95, 0.02) 50%, transparent 70%);
+      filter: blur(100px);
+      opacity: 0.7;
+    }
+    .ambient-orb-2 {
+      position: absolute;
+      bottom: -20vh;
+      right: 5vw;
+      width: 60vw;
+      height: 60vw;
+      max-width: 800px;
+      max-height: 800px;
+      background: radial-gradient(circle, rgba(42, 157, 143, 0.16) 0%, rgba(56, 189, 248, 0.02) 50%, transparent 70%);
+      filter: blur(110px);
+    }
+    .ambient-grid {
+      position: absolute;
+      inset: 0;
+      background-size: 60px 60px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+      mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    }
+
+    /* ==========================================================================
+       TOP RIGHT PLAIN HELPER ITEMS (NO BG, NO BORDER, MINIMALIST)
+       ========================================================================== */
+    .top-helper-plain-btn,
+    .top-helper-plain-link {
+      background: transparent !important;
+      border: none !important;
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      cursor: pointer;
+      text-decoration: none;
+      padding: 6px 8px;
+      line-height: 1;
+      user-select: none;
+      transition: color 0.15s ease;
+    }
+    .top-helper-plain-btn:hover,
+    .top-helper-plain-link:hover {
+      color: var(--text);
+    }
+    .top-helper-plain-btn svg,
+    .top-helper-plain-link svg {
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       SCREEN 1: FILE UPLOAD (CENTERED CANVAS - SPECIAL CASE)
+       ========================================================================== */
+    #screen-upload {
+      display: grid;
+      overflow-y: auto;
+    }
+
+    .upload-hero-title {
+      font-family: var(--font-serif);
+      font-size: clamp(3.2rem, 8vw, 6.5rem);
+      font-weight: 400;
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+      color: var(--text);
+      margin-bottom: 20px;
+      user-select: none;
+      text-align: left;
+    }
+    .upload-hero-title a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .upload-hero-title span.shimmer {
+      background: linear-gradient(135deg, #FAF9F5 30%, var(--primary) 70%, #F4A261 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .upload-hero-sub {
+      font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 660px;
+      user-select: none;
+      text-align: left;
+      margin: 0;
+    }
+
+    .btn-browse-huge {
+      background: linear-gradient(135deg, var(--primary), #D97757);
+      color: #FFF;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: clamp(16px, 2.5vh, 22px) clamp(28px, 4vw, 44px);
+      font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .btn-browse-huge:hover {
+      background: linear-gradient(135deg, var(--primary-hover), var(--primary));
+      border-color: #FFF;
+    }
+
+    .upload-sub-hints {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      text-align: left;
+    }
+    .upload-sub-hint-drop {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-family: var(--font-sans);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .upload-sub-hint-privacy {
+      color: var(--text-subtle);
+      font-size: 0.84rem;
+      font-family: var(--font-mono);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+
+    /* HOW TO GET MY MESSAGE BUTTON */
+    .btn-guide-secondary {
+      background: var(--surface);
+      color: var(--text-muted);
+      border: 1px solid var(--surface-border);
+      padding: clamp(16px, 2.5vh, 22px) clamp(20px, 3vw, 32px);
+      font-size: clamp(1rem, 1.7vw, 1.18rem);
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .btn-guide-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.3);
+      color: var(--text);
+    }
+
+    /* ==========================================================================
+       4-QUADRANT FULLSCREEN "HOW TO EXPORT" (EACH 1/4 SCREEN)
+       ========================================================================= */
+    .tutorial-quadrant-screen {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      background: #09090B;
+      z-index: 500;
+      transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      overflow: hidden;
+      text-align: left;
+    }
+    .tutorial-quadrant-screen.active {
+      transform: translateX(0);
+    }
+
+    .quadrant-cell {
+      position: relative;
+      padding: clamp(24px, 4vw, 54px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+      opacity: 1;
+      overflow: hidden;
+      text-align: left;
+    }
+    .quadrant-cell.q1 { border-top: none; border-left: none; }
+    .quadrant-cell.q2 { border-top: none; border-right: none; }
+    .quadrant-cell.q3 { border-bottom: none; border-left: none; }
+    .quadrant-cell.q4 { border-bottom: none; border-right: none; }
+
+    .q-huge-number {
+      font-family: var(--font-serif);
+      font-size: clamp(3.5rem, 7vw, 6.5rem);
+      font-weight: 400;
+      line-height: 1;
+      color: var(--primary);
+      opacity: 1;
+      margin-bottom: 12px;
+      user-select: none;
+    }
+
+    .q-content h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.4rem, 2.2vw, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .q-content p {
+      font-size: clamp(0.9rem, 1.1vw, 1.05rem);
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 480px;
+      margin-bottom: 16px;
+    }
+    .q-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--primary);
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(224, 122, 95, 0.4);
+      padding-bottom: 2px;
+      transition: border-color 0.15s ease;
+    }
+    .q-link:hover { border-bottom-color: var(--primary); }
+
+    .q-tip-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px;
+      background: rgba(244, 162, 97, 0.1);
+      border: 1px solid rgba(244, 162, 97, 0.25);
+      color: var(--accent-amber);
+      font-size: 0.82rem;
+    }
+
+    .q-cta-btn {
+      align-self: flex-start;
+      background: linear-gradient(135deg, var(--primary), #D97757);
+      color: #FFF;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 14px 28px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      font-family: inherit;
+    }
+    .q-cta-btn:hover {
+      background: linear-gradient(135deg, var(--primary-hover), var(--primary));
+      border-color: #FFF;
+    }
+
+    .tutorial-close-floating {
+      position: absolute;
+      top: 24px;
+      right: 28px;
+      z-index: 550;
+      background: rgba(23, 23, 28, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text);
+      padding: 9px 18px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      font-family: inherit;
+    }
+    .tutorial-close-floating:hover {
+      background: var(--surface-elevated);
+      border-color: var(--primary);
+    }
+
+    @media (max-width: 820px) {
+      .tutorial-quadrant-screen {
+        display: flex;
+        flex-direction: column;
+        grid-template-columns: none;
+        grid-template-rows: none;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        height: 100vh;
+        height: 100dvh;
+        padding-top: 64px;
+        padding-bottom: 40px;
+      }
+      .quadrant-cell {
+        min-height: auto;
+        flex-shrink: 0;
+        border-left: none;
+        border-right: none;
+        border-top: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 32px 24px;
+      }
+      .tutorial-close-floating {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+      }
+    }
+
+    /* ==========================================================================
+       FULLSCREEN LOADING SCREEN WITH BORDER PROGRESS BAR
+       - Laser progress travels across the top screen border (0% -> 100%)
+       ========================================================================== */
+    .fullscreen-loading-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      background: #09090B;
+      z-index: 800;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(32px, 7vw, 100px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      text-align: center;
+      overflow: hidden;
+    }
+    .fullscreen-loading-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .fullscreen-laser-bar-track {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      z-index: 10;
+      overflow: hidden;
+    }
+    .fullscreen-laser-bar-fill {
+      height: 100%;
+      width: var(--progress-pct, 0%);
+      background: linear-gradient(90deg, #E07A5F, #F4A261, #38BDF8, #A78BFA);
+      box-shadow: 0 0 16px rgba(224, 122, 95, 0.8);
+      transition: width 0.18s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    .loading-center-cluster {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 800px;
+    }
+    .loading-progress-huge {
+      font-family: var(--font-mono);
+      font-size: clamp(4.5rem, 12vw, 8.5rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: var(--text);
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #FAF9F5 30%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .loading-pulse-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 6px 16px;
+      background: var(--primary-container);
+      border: 1px solid rgba(224, 122, 95, 0.3);
+      color: var(--primary);
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .pulse-dot-spin {
+      width: 8px;
+      height: 8px;
+      background: var(--primary);
+      animation: pulseSpin 1s infinite alternate ease-in-out;
+    }
+    @keyframes pulseSpin {
+      0% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    .loading-status-detail {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      max-width: 580px;
+      line-height: 1.5;
+    }
+
+    /* ==========================================================================
+       SCREEN 2: CUSTOMIZE (INTERACTIVE INLINE FORM ARCHITECTURE)
+       ========================================================================== */
+    .screen-spatial-layout {
+      position: relative;
+      z-index: 10;
+      width: 100vw;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto 1fr auto;
+      padding: clamp(24px, 3.5vw, 44px);
+      gap: 32px 24px;
+      text-align: left;
+    }
+
+    .layout-top-left {
+      grid-column: 1;
+      grid-row: 1;
+      text-align: left;
+      max-width: 860px;
+    }
+
+    .layout-top-right {
+      grid-column: 2;
+      grid-row: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      gap: 16px;
+    }
+
+    .layout-bottom-left {
+      grid-column: 1;
+      grid-row: 3;
+      text-align: left;
+      max-width: 860px;
+      align-self: flex-end;
+    }
+
+    .layout-bottom-right {
+      grid-column: 2;
+      grid-row: 3;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 14px;
+      align-self: flex-end;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 768px) {
+      .screen-spatial-layout,
+      #screen-customize.active {
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 22px 20px 36px !important;
+        gap: 0 !important;
+        justify-content: flex-start !important;
+      }
+      .layout-top-right {
+        order: 1;
+        justify-content: flex-end;
+        align-self: flex-end;
+        margin-bottom: 14px;
+      }
+      .layout-top-left {
+        order: 2;
+        width: 100%;
+        margin-bottom: 20px;
+      }
+      .layout-bottom-left {
+        order: 3;
+        width: 100%;
+        margin-bottom: 32px;
+      }
+      .layout-bottom-right {
+        order: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        gap: 12px;
+        margin-top: auto;
+      }
+      .upload-sub-hints {
+        gap: 12px;
+        margin-top: 4px;
+      }
+      .upload-sub-hint-drop {
+        font-size: 0.98rem;
+        line-height: 1.45;
+      }
+      .upload-sub-hint-privacy {
+        font-size: 0.86rem;
+      }
+      .btn-browse-huge,
+      .btn-guide-secondary,
+      .btn-launch-wrapped-direct {
+        width: 100% !important;
+        justify-content: center !important;
+        text-align: center;
+      }
+      .upload-hero-title,
+      .customize-welcome-title {
+        font-size: clamp(3rem, 11.5vw, 4.4rem) !important;
+        line-height: 1.05 !important;
+        letter-spacing: -0.03em !important;
+      }
+      .upload-hero-sub,
+      .customize-welcome-sub {
+        font-size: 1.05rem;
+        line-height: 1.55;
+      }
+      .inline-story-row {
+        font-size: clamp(1.8rem, 6.5vw, 2.8rem);
+        line-height: 1.35;
+      }
+      .inline-story-input {
+        font-size: clamp(1.8rem, 6.5vw, 2.8rem);
+        width: 100%;
+        max-width: 100%;
+      }
+      .inline-story-select {
+        font-size: clamp(1.8rem, 6.5vw, 2.8rem);
+        width: 100%;
+        max-width: 100%;
+      }
+    }
+
+    #screen-customize {
+      display: none;
+      overflow-y: auto;
+    }
+    #screen-customize.active {
+      display: grid;
+    }
+
+    .customize-welcome-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 5.2vw, 4.2rem);
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .customize-welcome-sub {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Conversational Inline Mad-Libs Form */
+    .customize-inline-story-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      width: 100%;
+      text-align: left;
+    }
+
+    .inline-story-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 12px 16px;
+      font-family: var(--font-serif);
+      font-size: clamp(1.8rem, 3.8vw, 3.2rem);
+      line-height: 1.3;
+      color: var(--text);
+      text-align: left;
+    }
+
+    .inline-story-lead {
+      color: var(--text-muted);
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+
+    .inline-input-group {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      max-width: 100%;
+    }
+
+    .inline-story-input {
+      font-family: var(--font-serif);
+      font-size: clamp(1.8rem, 3.8vw, 3.2rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--primary);
+      background: transparent;
+      border: none;
+      border-bottom: 2.5px solid var(--primary);
+      padding: 0 6px 4px 6px;
+      outline: none;
+      width: 14ch;
+      min-width: 160px;
+      max-width: 100%;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .inline-story-input:focus {
+      border-bottom-color: #FAF9F5;
+      background: rgba(224, 122, 95, 0.08);
+    }
+
+    /* Candidate suggestions chips */
+    .inline-suggestions-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin-top: -6px;
+      margin-bottom: 8px;
+    }
+    .inline-suggestions-label {
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .inline-chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .identity-candidate-chip {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      user-select: none;
+    }
+    .identity-candidate-chip:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: var(--text);
+    }
+    .identity-candidate-chip.active {
+      background: var(--primary-container);
+      border-color: var(--primary);
+      color: #FFF;
+      font-weight: 700;
+    }
+
+    /* Plain Inline Language Drawer Trigger Button (No box border) */
+    .inline-select-group {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      max-width: 100%;
+    }
+
+    .inline-story-select {
+      font-family: var(--font-serif);
+      font-size: clamp(1.8rem, 3.8vw, 3.2rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--primary);
+      background: transparent;
+      border: none;
+      border-bottom: 2.5px solid var(--primary);
+      padding: 0 34px 4px 6px;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%23E07A5F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 4px center;
+      background-size: 20px;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .inline-story-select:focus {
+      border-bottom-color: #FAF9F5;
+      background-color: rgba(224, 122, 95, 0.08);
+    }
+    .inline-story-select option {
+      background: #17171C;
+      color: #FAF9F5;
+      font-family: var(--font-sans);
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 10px;
+    }
+
+    .btn-launch-wrapped-direct {
+      background: linear-gradient(135deg, var(--primary), #D97757);
+      color: #FFF;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: clamp(18px, 2.8vh, 26px) clamp(32px, 4.5vw, 54px);
+      font-size: clamp(1.15rem, 2vw, 1.4rem);
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .btn-launch-wrapped-direct:hover {
+      background: linear-gradient(135deg, var(--primary-hover), var(--primary));
+      border-color: #FFF;
+    }
+
+    /* ==========================================================================
+       SCREEN 3: FINAL HTML (BOUNDLESS DASHBOARD, LEFT-ALIGNED)
+       ========================================================================== */
+    #screen-dashboard {
+      display: none;
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      min-height: 100vh;
+      padding: clamp(24px, 3.5vw, 48px) clamp(24px, 3.5vw, 48px) 100px;
+      text-align: left;
+    }
+    #screen-dashboard.active {
+      display: block;
+    }
+
+    .dash-boundless-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .dash-hero-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2.5rem, 5vw, 4.2rem);
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      color: var(--text);
+    }
+    .dash-hero-title a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .dash-hero-title a:hover {
+      color: var(--primary);
+    }
+    .dash-hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .dash-author-tag {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dash-author-tag a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      border-bottom: 1px dashed rgba(224, 122, 95, 0.4);
+    }
+    .dash-date-pill {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--text-subtle);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dash-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dash-pill-btn {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      color: var(--text-muted);
+      padding: 9px 18px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      font-family: inherit;
+    }
+    .dash-pill-btn:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(35, 35, 42, 0.9);
+    }
+    .dash-pill-btn.primary {
+      color: var(--primary);
+      background: var(--primary-container);
+      border-color: rgba(224, 122, 95, 0.35);
+    }
+    .dash-pill-btn.primary:hover {
+      background: rgba(224, 122, 95, 0.24);
+      border-color: var(--primary);
+    }
+
+    /* Metric Banners */
+    .kpi-spatial-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-bottom: 48px;
+    }
+    .kpi-spatial-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.15s ease;
+      text-align: left;
+    }
+    .kpi-spatial-card:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .kpi-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .kpi-title-label {
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+    .kpi-icon-badge {
+      color: var(--primary);
+    }
+    .kpi-giant-value {
+      font-family: var(--font-mono);
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .kpi-subtext {
+      font-size: 0.82rem;
+      color: var(--text-subtle);
+    }
+
+    /* Boundless Tabs Navigation */
+    .boundless-tabs-row {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 36px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      position: sticky;
+      top: 0;
+      background: rgba(9, 9, 11, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 100;
+      padding-top: 12px;
+    }
+    .boundless-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 0.92rem;
+      font-weight: 700;
+      padding: 12px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: color 0.15s ease, border-color 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .boundless-tab-btn:hover { color: var(--text); }
+    .boundless-tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-content-panel { display: none; }
+    .tab-content-panel.active { display: block; }
+
+    /* Section Headers */
+    .panel-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .panel-section-title {
+      font-family: var(--font-serif);
+      font-size: 1.8rem;
+      font-weight: 400;
+      color: var(--text);
+    }
+
+    /* Spoiler Toggle */
+    .spoiler-switch-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      padding: 8px 18px;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s ease;
+    }
+    .spoiler-switch-wrap:hover { border-color: var(--primary); }
+    .spoiler-switch-wrap input { display: none; }
+    .spoiler-slider {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      transition: background 0.2s ease;
+    }
+    .spoiler-slider:before {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+    .spoiler-switch-wrap input:checked + .spoiler-slider {
+      background: var(--primary-container);
+    }
+    .spoiler-switch-wrap input:checked + .spoiler-slider:before {
+      transform: translateX(16px);
+      background: var(--primary);
+    }
+
+    /* Insights Grid & Cards (Left-Aligned, No Hover Movement) */
+    .insights-spatial-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 24px;
+      margin-bottom: 48px;
+    }
+    .insight-spatial-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+      position: relative;
+      transition: border-color 0.15s ease;
+      text-align: left;
+    }
+    .insight-spatial-card:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .card-top-action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-insight-pill {
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .card-download-btn {
+      width: 28px;
+      height: 28px;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      color: var(--text-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      padding: 0;
+      transition: color 0.15s ease, opacity 0.15s ease;
+    }
+    .insight-spatial-card:hover .card-download-btn {
+      opacity: 0.8;
+      pointer-events: auto;
+    }
+    .insight-spatial-card.spoiled .card-download-btn,
+    .insight-spatial-card.spoiled:hover .card-download-btn {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    .card-download-btn:hover {
+      color: var(--primary) !important;
+      background: transparent !important;
+      border: none !important;
+      opacity: 1;
+    }
+
+    .insight-quote-frame {
+      position: relative;
+      min-height: 70px;
+      text-align: left;
+    }
+    .insight-main-quote {
+      font-family: var(--font-serif);
+      font-size: 1.28rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text);
+      transition: filter 0.25s ease, opacity 0.25s ease;
+      text-align: left;
+    }
+    .insight-main-quote strong { color: var(--primary); font-weight: 600; }
+
+    .insight-spatial-card.spoiled { cursor: pointer; }
+    .insight-spatial-card.spoiled .insight-main-quote {
+      filter: blur(10px);
+      user-select: none;
+      opacity: 0.3;
+    }
+    .insight-spatial-card.spoiled .card-bottom-footer {
+      filter: blur(6px);
+      user-select: none;
+      opacity: 0.3;
+    }
+    .insight-spatial-card.spoiled:hover .insight-main-quote { filter: blur(7px); opacity: 0.5; }
+
+    .spoiler-unlock-badge {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1B1B20;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--primary);
+      padding: 6px 14px;
+      pointer-events: none;
+      font-size: 0.82rem;
+      font-weight: 700;
+      gap: 6px;
+      transition: border-color 0.15s ease;
+    }
+    .insight-spatial-card.spoiled .spoiler-unlock-badge {
+      display: inline-flex;
+      align-items: center;
+    }
+    .insight-spatial-card.spoiled:hover .spoiler-unlock-badge {
+      border-color: var(--primary);
+    }
+
+    .card-bottom-footer {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      text-align: left;
+    }
+    .card-export-watermark {
+      display: none;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-top: 18px;
+      text-align: right;
+      width: 100%;
+    }
+
+    /* Categories Spatial Grid */
+    .categories-spatial-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+      margin-bottom: 48px;
+    }
+    .category-spatial-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      padding: 24px;
+      text-align: left;
+    }
+    .category-card-heading {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .category-rank-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .cat-rank-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .cat-rank-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .cat-rank-num {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 800;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .cat-rank-num.r1 { color: #E5A93C; background: rgba(229, 169, 60, 0.18); border: 1px solid rgba(229, 169, 60, 0.3); }
+    .cat-rank-num.r2 { color: #CBD5E1; background: rgba(203, 213, 225, 0.15); border: 1px solid rgba(203, 213, 225, 0.25); }
+    .cat-rank-num.r3 { color: #CD7F32; background: rgba(205, 127, 50, 0.18); border: 1px solid rgba(205, 127, 50, 0.3); }
+    .cat-rank-name {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cat-rank-meta { font-size: 0.76rem; color: var(--text-subtle); }
+    .cat-rank-val {
+      font-family: var(--font-mono);
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* Graphs */
+    .graph-control-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      padding: 16px 20px;
+    }
+    .graph-ctrl-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .graph-ctrl-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .graph-select-box {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--surface-border);
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .graph-canvas-frame {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      padding: 24px;
+      height: 520px;
+      position: relative;
+    }
+
+    /* Tables */
+    .search-input-direct {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      color: var(--text);
+      padding: 10px 16px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      width: 260px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .search-input-direct:focus { border-color: var(--primary); }
+    .table-spatial-frame {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      overflow-x: auto;
+      margin-bottom: 48px;
+    }
+    table.spatial-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    th.spatial-th {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    td.spatial-td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text);
+    }
+    tr:last-child td.spatial-td { border-bottom: none; }
+    tr:hover td.spatial-td { background: rgba(255, 255, 255, 0.02); }
+
+    /* Drag Drop Fullscreen Border Feedback */
+    .drag-hover-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(9, 9, 11, 0.92);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(32px, 7vw, 100px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      border: 3px dashed var(--primary);
+      text-align: center;
+    }
+    .drag-hover-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .drag-hover-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 4vw, 3rem);
+      color: var(--text);
+      text-align: center;
+    }
+
+    /* Toast */
+    .toast-spatial-box {
+      position: fixed;
+      bottom: 28px;
+      right: 80px;
+      z-index: 2000;
+      background: #1A1A20;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      pointer-events: none;
+    }
+    .toast-spatial-box.show {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Mobile Responsive for Dashboard & Tables */
+    @media (max-width: 768px) {
+      #screen-dashboard {
+        padding: 20px 16px 80px;
+      }
+      .dash-boundless-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .dash-hero-title {
+        font-size: clamp(2.8rem, 10.5vw, 4.2rem) !important;
+        line-height: 1.05 !important;
+        letter-spacing: -0.03em !important;
+      }
+      .dash-header-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .dash-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+      }
+      .dash-kpi-card {
+        padding: 16px 14px !important;
+      }
+      .dash-kpi-value {
+        font-size: clamp(1.4rem, 5vw, 2rem) !important;
+      }
+      .boundless-tabs-bar {
+        gap: 4px;
+        padding-top: 8px;
+        margin-bottom: 24px;
+      }
+      .boundless-tab-btn {
+        padding: 10px 14px;
+        font-size: 0.85rem;
+      }
+      .insights-spatial-grid,
+      .categories-spatial-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+      }
+      .insight-spatial-card,
+      .category-spatial-card {
+        padding: 20px 18px !important;
+      }
+      .insight-quote-frame {
+        min-height: auto;
+      }
+      .card-download-btn {
+        opacity: 0.85 !important;
+        pointer-events: auto !important;
+      }
+      .toast-spatial-box {
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dash-kpi-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .dash-date-pill {
+        white-space: normal;
+        font-size: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Background Mesh -->
+  <div class="ambient-canvas">
+    <div class="ambient-orb-1"></div>
+    <div class="ambient-orb-2"></div>
+    <div class="ambient-grid"></div>
+  </div>
+
+  <!-- Drag & Drop Fullscreen Visual Indicator -->
+  <div class="drag-hover-overlay" id="drag-hover-overlay">
+    <h2 class="drag-hover-title" id="txt-drag-title">Drop here to upload</h2>
+  </div>
+
+  <!-- ==========================================================================
+       SCREEN 1: FILE UPLOAD (SPATIAL 4-CORNER LAYOUT, ALIKE PERSONALIZE SCREEN)
+       - Top Left: Headers
+       - Top Right: Plain Helpers (Earth + Lang, GitHub icon only)
+       - Bottom Left: Specifications / Hints
+       - Bottom Right: Action Buttons (How to get my message + Browse Message File)
+       ========================================================================== -->
+  <div id="screen-upload" class="screen-spatial-layout">
+    <input type="file" id="file-input-zip" accept=".zip,application/zip,application/x-zip-compressed" style="display:none;">
+
+    <!-- Top Left: Headers -->
+    <div class="layout-top-left">
+      <h1 class="upload-hero-title">
+        <a href="https://buddieswrapped.duongnx.tech" target="_blank" rel="noopener noreferrer">
+          <span class="shimmer" id="txt-hero-title">Buddies Wrapped</span>
+        </a>
+      </h1>
+      <p class="upload-hero-sub" id="txt-hero-sub">
+        Transform your Facebook Messenger chat archives into an unconstrained, ultra-expressive retrospective & leaderboard.
+      </p>
+    </div>
+
+    <!-- Top Right: Plain Helpers (Earth + EN/VI, GitHub icon only, No BG, No Border) -->
+    <div class="layout-top-right">
+      <button type="button" class="top-helper-plain-btn" onclick="toggleLanguage(event)" title="Toggle Language (EN / VI)" aria-label="Toggle Language">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span class="txt-lang-code">EN</span>
+      </button>
+
+      <a href="https://github.com/duongnguyen16/buddies-wrapped" target="_blank" rel="noopener noreferrer" class="top-helper-plain-link" title="GitHub Repository" aria-label="GitHub Repository">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+        </svg>
+      </a>
+    </div>
+
+    <!-- Bottom Left: Sub Hints & Specs -->
+    <div class="layout-bottom-left">
+      <div class="upload-sub-hints">
+        <div class="upload-sub-hint-drop" id="txt-spec-drop">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <span>Drop your <code>.zip</code> file anywhere across this screen to load</span>
+        </div>
+        <div class="upload-sub-hint-privacy" id="txt-spec-privacy">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>No messages are sent to any server</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Right: Action Buttons -->
+    <div class="layout-bottom-right">
+      <button class="btn-guide-secondary" onclick="openQuadrantTutorial()" id="btn-floating-guide" title="How to get my message">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span id="txt-floating-guide">How to get my message</span>
+      </button>
+
+      <button class="btn-browse-huge" onclick="document.getElementById('file-input-zip').click()">
+        <span id="txt-btn-browse">Browse Message File (.zip)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       4-QUADRANT FULLSCREEN "HOW TO EXPORT" (EACH 1/4 OF SCREEN)
+       ========================================================================== -->
+  <div class="tutorial-quadrant-screen" id="tutorial-quadrants">
+    <button class="tutorial-close-floating" onclick="closeQuadrantTutorial()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+      <span id="txt-tut-close">Close Tutorial (Esc)</span>
+    </button>
+
+    <!-- Quadrant 1 (Top-Left 1/4 Screen) -->
+    <div class="quadrant-cell q1">
+      <div class="q-huge-number">01</div>
+      <div class="q-content">
+        <h2 id="txt-q1-title">Meta Accounts Center</h2>
+        <p id="txt-q1-desc">Navigate to Accounts Center -> Your information and permissions -> Download your information.</p>
+        <a href="https://www.facebook.com/secure_storage/dyi" target="_blank" rel="noopener noreferrer" class="q-link">
+          <span>facebook.com/secure_storage/dyi</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+      </div>
+      <div></div>
+    </div>
+
+    <!-- Quadrant 2 (Top-Right 1/4 Screen) -->
+    <div class="quadrant-cell q2">
+      <div class="q-huge-number">02</div>
+      <div class="q-content">
+        <h2 id="txt-q2-title">Select Messages & JSON Format</h2>
+        <p id="txt-q2-desc">Choose <strong>Messages</strong>. Ensure you pick <strong>JSON</strong> format (HTML format is not supported for automated Wrapped analytics).</p>
+        <div class="q-tip-pill">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span id="txt-q2-tip">Tip: Uncheck media files for instant fast export download!</span>
+        </div>
+      </div>
+      <div></div>
+    </div>
+
+    <!-- Quadrant 3 (Bottom-Left 1/4 Screen) -->
+    <div class="quadrant-cell q3">
+      <div class="q-huge-number">03</div>
+      <div class="q-content">
+        <h2 id="txt-q3-title">Download .ZIP Archive</h2>
+        <p id="txt-q3-desc">Once Meta finishes generating your export, download the resulting <code>.zip</code> file onto your device storage.</p>
+      </div>
+      <div></div>
+    </div>
+
+    <!-- Quadrant 4 (Bottom-Right 1/4 Screen) -->
+    <div class="quadrant-cell q4">
+      <div class="q-huge-number">04</div>
+      <div class="q-content">
+        <h2 id="txt-q4-title">Drop or Paste into Wrapped</h2>
+        <p id="txt-q4-desc">Simply drop the <code>.zip</code> file onto this window or press <span class="kbd-btn">Ctrl</span> + <span class="kbd-btn">V</span> to paste. Your Wrapped story generates instantly and 100% privately in your browser.</p>
+        <button class="q-cta-btn" onclick="closeQuadrantTutorial(); document.getElementById('file-input-zip').click();">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <span id="txt-q4-cta">I have message zip file</span>
+        </button>
+      </div>
+      <div></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       FULLSCREEN LOADING SCREEN WITH BORDER PROGRESS BAR
+       ========================================================================== -->
+  <div class="fullscreen-loading-overlay" id="loading-overlay">
+    <!-- Top Screen Border Laser Progress Track -->
+    <div class="fullscreen-laser-bar-track">
+      <div class="fullscreen-laser-bar-fill" id="laser-bar-fill"></div>
+    </div>
+
+    <div class="loading-center-cluster">
+      <div class="loading-pulse-badge">
+        <div class="pulse-dot-spin"></div>
+        <span id="txt-loading-badge">Processing Archive</span>
+      </div>
+      <div class="loading-progress-huge" id="loading-pct-text">0%</div>
+      <div class="loading-status-detail" id="loading-status-detail">Initializing in-memory decompression...</div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       SCREEN 2: CUSTOMIZE (INTERACTIVE INLINE MAD-LIBS FORM)
+       - Top Left: Headers
+       - Top Right: Plain Helpers (Earth + Lang, GitHub icon only)
+       - Bottom Left: Conversational Inline Form (Name, Language Drawer Trigger, Chips)
+       - Bottom Right: Action Button (Launch Wrapped)
+       ========================================================================== -->
+  <div id="screen-customize" class="screen-spatial-layout">
+    <!-- Top Left: Headers -->
+    <div class="layout-top-left">
+      <h1 class="customize-welcome-title" id="txt-cust-title">Personalize Your Wrapped</h1>
+      <p class="customize-welcome-sub" id="txt-cust-sub">We've inspected your archive in memory. Confirm your identity and language preference below.</p>
+    </div>
+
+    <!-- Top Right: Plain Helpers -->
+    <div class="layout-top-right">
+      <button type="button" class="top-helper-plain-btn" onclick="toggleLanguage(event)" title="Toggle Language (EN / VI)" aria-label="Toggle Language">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span class="txt-lang-code">EN</span>
+      </button>
+
+      <a href="https://github.com/duongnguyen16/buddies-wrapped" target="_blank" rel="noopener noreferrer" class="top-helper-plain-link" title="GitHub Repository" aria-label="GitHub Repository">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+        </svg>
+      </a>
+    </div>
+
+    <!-- Bottom Left: Conversational Inline Form -->
+    <div class="layout-bottom-left">
+      <div class="customize-inline-story-container">
+        <!-- Line 1: Identity Inline -->
+        <div class="inline-story-row">
+          <span class="inline-story-lead" id="txt-inline-lead-name">Your name is</span>
+          <div class="inline-input-group">
+            <input type="text" id="input-identity-name" list="identity-datalist" class="inline-story-input" placeholder="your name" autocomplete="name" oninput="adjustInputWidth(this)">
+            <datalist id="identity-datalist"></datalist>
+          </div>
+        </div>
+
+        <!-- Suggested Candidates Chips -->
+        <div id="identity-suggestions-row" class="inline-suggestions-row" style="display:none;">
+          <span id="txt-suggested-label" class="inline-suggestions-label">Suggested:</span>
+          <div id="identity-chips-wrap" class="inline-chips-wrap"></div>
+        </div>
+
+        <!-- Line 2: Language Inline with Dropdown -->
+        <div class="inline-story-row">
+          <span class="inline-story-lead" id="txt-inline-lead-lang">Your wrapped using</span>
+          <div class="inline-select-group">
+            <select id="select-report-lang" class="inline-story-select" onchange="selectReportLang(this.value)">
+              <option value="EN">English</option>
+              <option value="VI">Tiếng Việt</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Right: Action Button -->
+    <div class="layout-bottom-right">
+      <button class="btn-launch-wrapped-direct" id="btn-generate-wrapped" onclick="generateWrappedDashboard()">
+        <span id="txt-btn-generate">Continue</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       SCREEN 3: FINAL HTML (BOUNDLESS DASHBOARD, LEFT-ALIGNED)
+       ========================================================================== -->
+  <div id="screen-dashboard">
+    <div class="dash-boundless-header">
+      <div>
+        <h1 class="dash-hero-title">
+          <a href="https://buddieswrapped.duongnx.tech" target="_blank" rel="noopener noreferrer" title="Buddies Wrapped">
+            Buddies Wrapped
+          </a>
+        </h1>
+        <div class="dash-hero-meta">
+          <div class="dash-author-tag">
+            <span id="txt-dash-by">Created by</span>
+            <span id="dash-author-name" style="color:var(--text); font-weight:700;">You</span>
+          </div>
+          <div class="dash-date-pill" id="dash-date-range">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <span>2020-01-01 → 2026-01-01</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-header-actions">
+        <!-- Top Right Plain Helpers in Dashboard -->
+        <a href="https://github.com/duongnguyen16/buddies-wrapped" target="_blank" rel="noopener noreferrer" class="top-helper-plain-link" title="GitHub Repository" aria-label="GitHub Repository" style="margin-right:12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+        </a>
+
+        <button class="dash-pill-btn primary" onclick="shareBuddiesWrapped()" id="btn-dash-share">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+          <span id="txt-btn-share">Share</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Dynamic Dashboard Container -->
+    <div id="dynamic-dashboard-content"></div>
+  </div>
+
+  <!-- Spatial Toast Element -->
+  <div class="toast-spatial-box" id="toast-spatial">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary);">
+      <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+    <div id="toast-spatial-text">Notification</div>
+  </div>
+
+  <script>
+    // State Management
+    let parsedFiles = [];
+    let detectedIdentity = "You";
+    let candidateIdentities = [];
+    let activeChartInstance = null;
+    let globalOverviewData = null;
+    let currentLang = 'EN';
+    let chosenReportLang = 'EN';
+
+    const UI_STRINGS = {
+      EN: {
+        guideBtn: "How to get my message",
+        heroTitle: "Buddies Wrapped",
+        heroSub: "Transform your Facebook Messenger chat archives into an unconstrained, ultra-expressive Spotify-Wrapped retrospective & leaderboard.",
+        specDrop: "Drop your .zip file anywhere across this screen to load",
+        specPrivacy: "No messages are sent to any server",
+        btnBrowse: "Browse Message File (.zip)",
+        dragTitle: "Drop here to upload",
+        tutClose: "Close Tutorial (Esc)",
+        q1Title: "Meta Accounts Center",
+        q1Desc: "Navigate to Accounts Center -> Your information and permissions -> Download your information.",
+        q2Title: "Select Messages & JSON Format",
+        q2Desc: "Choose Messages. Ensure you pick JSON format (HTML format is not supported for automated Wrapped analytics).",
+        q2Tip: "Tip: Uncheck media files for instant fast export download!",
+        q3Title: "Download .ZIP Archive",
+        q3Desc: "Once Meta finishes generating your export, download the resulting .zip file onto your device storage.",
+        q4Title: "Drop or Paste into Wrapped",
+        q4Desc: "Simply drop the .zip file onto this window or press Ctrl + V to paste. Your Wrapped story generates instantly and 100% privately in your browser.",
+        q4Cta: "I have message zip file",
+        custTitle: "Personalize Your Wrapped",
+        custSub: "We've inspected your archive in memory. Confirm your identity and language preference below.",
+        inlineLeadName: "Your name is",
+        inlineLeadLang: "Your wrapped using",
+        lblSuggested: "Suggested:",
+        drawerSuper: "REPORT LANGUAGE",
+        drawerTitle: "Choose Report Language",
+        drawerDescEn: "Generate Wrapped retrospectives, insights & categories in English",
+        drawerDescVi: "Generate Wrapped retrospectives, insights & categories in Vietnamese",
+        drawerConfirm: "Done",
+        btnGenerate: "Continue",
+        dashBy: "Created by",
+        btnShare: "Share",
+        toastZipOnly: "Please select or paste a .zip archive (e.g. messages.zip)",
+        toastNoJson: "No Messenger JSON conversation files found in this .zip archive."
+      },
+      VI: {
+        guideBtn: "Cách lấy file tin nhắn",
+        heroTitle: "Buddies Wrapped",
+        heroSub: "Biến file nén tin nhắn Facebook Messenger thành báo cáo phân tích & bảng xếp hạng tương tác phong cách Spotify Wrapped.",
+        specDrop: "Thả file .zip vào bất kỳ đâu trên màn hình để nạp dữ liệu",
+        specPrivacy: "Không có tin nhắn nào gửi lên máy chủ",
+        btnBrowse: "Chọn File Tin Nhắn (.zip)",
+        dragTitle: "Thả vào đây để tải lên",
+        tutClose: "Đóng Hướng Dẫn (Esc)",
+        q1Title: "Mở trang Tải thông tin của bạn",
+        q1Desc: "Truy cập Trung tâm tài khoản Meta -> Thông tin và quyền của bạn -> Tải thông tin của bạn.",
+        q2Title: "Chọn Tin Nhắn & Đặt Định Dạng JSON",
+        q2Desc: "Chọn mục Tin nhắn. Bắt buộc chọn định dạng JSON (định dạng HTML không hỗ trợ phân tích tự động).",
+        q2Tip: "Mẹo: Bỏ chọn các file phương tiện để tải về siêu nhanh!",
+        q3Title: "Tải File Nén .ZIP Về Máy",
+        q3Desc: "Khi Facebook tạo xong bản sao lưu, tải file .zip về máy tính của bạn.",
+        q4Title: "Thả hoặc Dán vào Wrapped",
+        q4Desc: "Chỉ cần kéo thả file .zip vào trình duyệt hoặc bấm phím Ctrl + V để dán. Báo cáo Wrapped sẽ hiển thị ngay lập tức.",
+        q4Cta: "Tôi đã có file zip tin nhắn",
+        custTitle: "Tuỳ Chỉnh Báo Cáo Của Bạn",
+        custSub: "Đã giải nén dữ liệu tin nhắn. Hãy xác nhận tên danh tính của bạn và ngôn ngữ hiển thị bên dưới.",
+        inlineLeadName: "Tên của bạn là",
+        inlineLeadLang: "Báo cáo wrapped dùng",
+        lblSuggested: "Gợi ý tự động:",
+        drawerSuper: "NGÔN NGỮ BÁO CÁO",
+        drawerTitle: "Chọn Ngôn Ngữ Báo Cáo",
+        drawerDescEn: "Tạo báo cáo, phân tích danh mục & thẻ tổng kết bằng tiếng Anh",
+        drawerDescVi: "Tạo báo cáo, phân tích danh mục & thẻ tổng kết bằng tiếng Việt",
+        drawerConfirm: "Xong",
+        btnGenerate: "Tiếp tục",
+        dashBy: "Thực hiện bởi",
+        btnShare: "Chia Sẻ",
+        toastZipOnly: "Vui lòng chọn hoặc dán file nén định dạng .zip (ví dụ: messages.zip)",
+        toastNoJson: "Không tìm thấy file tin nhắn JSON hợp lệ trong file .zip này."
+      }
+    };
+
+    function toggleLanguage(event) {
+      if (event) event.preventDefault();
+      const nextLang = currentLang === 'EN' ? 'VI' : 'EN';
+      switchLanguage(nextLang);
+    }
+
+    function switchLanguage(lang, event) {
+      if (event) event.preventDefault();
+      currentLang = lang;
+      const isVi = lang === 'VI';
+
+      document.querySelectorAll('.txt-lang-code').forEach(el => {
+        el.textContent = lang;
+      });
+
+      const s = UI_STRINGS[lang];
+      if (document.getElementById('txt-floating-guide')) document.getElementById('txt-floating-guide').textContent = s.guideBtn;
+      if (document.getElementById('txt-hero-title')) document.getElementById('txt-hero-title').textContent = s.heroTitle;
+      if (document.getElementById('txt-hero-sub')) document.getElementById('txt-hero-sub').textContent = s.heroSub;
+      if (document.getElementById('txt-btn-browse')) document.getElementById('txt-btn-browse').textContent = s.btnBrowse;
+      if (document.getElementById('txt-spec-drop')) document.getElementById('txt-spec-drop').innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><span>${isVi ? 'Thả file <code>.zip</code> vào bất kỳ đâu trên màn hình để nạp dữ liệu' : 'Drop your <code>.zip</code> file anywhere across this screen to load'}</span>`;
+      if (document.getElementById('txt-spec-privacy')) document.getElementById('txt-spec-privacy').innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span>${s.specPrivacy}</span>`;
+      if (document.getElementById('txt-drag-title')) document.getElementById('txt-drag-title').textContent = s.dragTitle;
+
+      if (document.getElementById('txt-tut-close')) document.getElementById('txt-tut-close').textContent = s.tutClose;
+      if (document.getElementById('txt-q1-title')) document.getElementById('txt-q1-title').textContent = s.q1Title;
+      if (document.getElementById('txt-q1-desc')) document.getElementById('txt-q1-desc').textContent = s.q1Desc;
+      if (document.getElementById('txt-q2-title')) document.getElementById('txt-q2-title').textContent = s.q2Title;
+      if (document.getElementById('txt-q2-desc')) document.getElementById('txt-q2-desc').textContent = s.q2Desc;
+      if (document.getElementById('txt-q2-tip')) document.getElementById('txt-q2-tip').textContent = s.q2Tip;
+      if (document.getElementById('txt-q3-title')) document.getElementById('txt-q3-title').textContent = s.q3Title;
+      if (document.getElementById('txt-q3-desc')) document.getElementById('txt-q3-desc').textContent = s.q3Desc;
+      if (document.getElementById('txt-q4-title')) document.getElementById('txt-q4-title').textContent = s.q4Title;
+      if (document.getElementById('txt-q4-desc')) document.getElementById('txt-q4-desc').textContent = s.q4Desc;
+      if (document.getElementById('txt-q4-cta')) document.getElementById('txt-q4-cta').textContent = s.q4Cta;
+
+      if (document.getElementById('txt-cust-title')) document.getElementById('txt-cust-title').textContent = s.custTitle;
+      if (document.getElementById('txt-cust-sub')) document.getElementById('txt-cust-sub').textContent = s.custSub;
+
+      if (document.getElementById('txt-inline-lead-name')) document.getElementById('txt-inline-lead-name').textContent = s.inlineLeadName;
+      if (document.getElementById('txt-inline-lead-lang')) document.getElementById('txt-inline-lead-lang').textContent = s.inlineLeadLang;
+      if (document.getElementById('txt-suggested-label')) document.getElementById('txt-suggested-label').textContent = s.lblSuggested;
+      if (document.getElementById('txt-btn-generate')) document.getElementById('txt-btn-generate').textContent = s.btnGenerate;
+
+      if (document.getElementById('txt-dash-by')) document.getElementById('txt-dash-by').textContent = s.dashBy;
+      if (document.getElementById('txt-btn-share')) document.getElementById('txt-btn-share').textContent = s.btnShare;
+
+      selectReportLang(lang);
+
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.set('lang', lang.toLowerCase());
+        window.history.replaceState({}, '', u.toString());
+      } catch (_e) {}
+    }
+
+    function selectReportLang(lang) {
+      chosenReportLang = lang;
+      const selectEl = document.getElementById('select-report-lang');
+      if (selectEl && selectEl.value !== lang) {
+        selectEl.value = lang;
+      }
+    }
+
+    function adjustInputWidth(input) {
+      if (!input) return;
+      const text = input.value || input.placeholder || "your name";
+      input.style.width = Math.max(text.length + 1, 10) + 'ch';
+    }
+
+    // Screen Transitions
+    function navigateToScreen(screenId) {
+      document.getElementById('screen-upload').style.display = 'none';
+      document.getElementById('screen-customize').classList.remove('active');
+      document.getElementById('screen-dashboard').classList.remove('active');
+
+      if (screenId === 'screen-upload') {
+        document.getElementById('screen-upload').style.display = 'grid';
+      } else if (screenId === 'screen-customize') {
+        document.getElementById('screen-customize').classList.add('active');
+        const inputEl = document.getElementById('input-identity-name');
+        if (inputEl) adjustInputWidth(inputEl);
+      } else if (screenId === 'screen-dashboard') {
+        document.getElementById('screen-dashboard').classList.add('active');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Fullscreen 4-Quadrant Tutorial Screen
+    function openQuadrantTutorial() {
+      const tut = document.getElementById('tutorial-quadrants');
+      if (tut) tut.classList.add('active');
+    }
+    function closeQuadrantTutorial() {
+      const tut = document.getElementById('tutorial-quadrants');
+      if (tut) tut.classList.remove('active');
+    }
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeQuadrantTutorial();
+      }
+    });
+
+    // Toast
+    function showToast(msg) {
+      const t = document.getElementById('toast-spatial');
+      const textEl = document.getElementById('toast-spatial-text');
+      if (!t || !textEl) return;
+      textEl.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => { t.classList.remove('show'); }, 3800);
+    }
+
+    // Fullscreen Drag & Drop
+    let dragCounter = 0;
+    const dragOverlay = document.getElementById('drag-hover-overlay');
+
+    window.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      if (dragOverlay) dragOverlay.classList.add('active');
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        if (dragOverlay) dragOverlay.classList.remove('active');
+      }
+    });
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      if (dragOverlay) dragOverlay.classList.remove('active');
+
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        const zipFile = Array.from(files).find(f => f.name.toLowerCase().endsWith('.zip') || f.type.includes('zip'));
+        if (zipFile) {
+          processZipFileWithAnimation(zipFile);
+        } else {
+          showToast(UI_STRINGS[currentLang].toastZipOnly);
+        }
+      }
+    });
+
+    // Fullscreen Clipboard Paste Handler
+    window.addEventListener('paste', async (e) => {
+      if (!e.clipboardData) return;
+      const files = e.clipboardData.files;
+      const items = e.clipboardData.items;
+      let zipFile = null;
+
+      if (files && files.length > 0) {
+        for (const f of files) {
+          if (f.name.toLowerCase().endsWith('.zip') || f.type.includes('zip')) {
+            zipFile = f;
+            break;
+          }
+        }
+      }
+
+      if (!zipFile && items && items.length > 0) {
+        for (const item of items) {
+          if (item.kind === 'file') {
+            const f = item.getAsFile();
+            if (f && (f.name.toLowerCase().endsWith('.zip') || f.type.includes('zip'))) {
+              zipFile = f;
+              break;
+            }
+          }
+        }
+      }
+
+      if (zipFile) {
+        e.preventDefault();
+        processZipFileWithAnimation(zipFile);
+      } else if (e.clipboardData.types.includes('Files')) {
+        showToast(UI_STRINGS[currentLang].toastZipOnly);
+      }
+    });
+
+    document.getElementById('file-input-zip').addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        const zipFile = Array.from(files).find(f => f.name.toLowerCase().endsWith('.zip') || f.type.includes('zip'));
+        if (zipFile) {
+          processZipFileWithAnimation(zipFile);
+        } else {
+          showToast(UI_STRINGS[currentLang].toastZipOnly);
+        }
+      }
+    });
+
+    // Decoding Mojibake & Unicode Normalization (NFD -> NFC)
+    function normalizeLegacyText(str) {
+      if (!str || typeof str !== 'string') return '';
+      try {
+        const bytes = new Uint8Array(str.length);
+        let canBeLatin1 = true;
+        for (let i = 0; i < str.length; i++) {
+          const code = str.charCodeAt(i);
+          if (code > 255) {
+            canBeLatin1 = false;
+            break;
+          }
+          bytes[i] = code;
+        }
+        if (canBeLatin1) {
+          const decoded = new TextDecoder('utf-8').decode(bytes);
+          if (!decoded.includes('\ufffd')) {
+            str = decoded;
+          }
+        }
+      } catch (_e) {}
+      return str.normalize('NFC').trim();
+    }
+
+    // Comprehensive Name Matching
+    function areNamesEqual(nameA, nameB) {
+      if (!nameA || !nameB) return false;
+      const a = nameA.trim().normalize('NFC').toLowerCase();
+      const b = nameB.trim().normalize('NFC').toLowerCase();
+      if (a === b) return true;
+      
+      const stripDiacritics = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      if (stripDiacritics(a) === stripDiacritics(b) && a.length > 2) return true;
+      
+      return false;
+    }
+
+    // Enhanced Multi-Thread Frequency Identity Detection
+    function detectSenderIdentity(files) {
+      for (const f of files) {
+        const p = f.path.toLowerCase();
+        if (p.includes('personal_information') || p.includes('profile_information') || p.includes('account_information')) {
+          try {
+            const obj = JSON.parse(f.content);
+            const candidate = obj.profile_v2?.name?.full_name || 
+                              obj.profile?.name?.full_name || 
+                              obj.name?.full_name || 
+                              obj.full_name || 
+                              obj.name;
+            if (candidate && typeof candidate === 'string') {
+              const norm = normalizeLegacyText(candidate).trim();
+              if (norm.length > 0) return { identity: norm, candidates: [norm] };
+            }
+          } catch (_e) {}
+        }
+      }
+
+      const threadPresence = {};
+      const msgCounts = {};
+
+      for (const f of files) {
+        try {
+          const data = JSON.parse(f.content);
+          const threadKey = f.path;
+          const participants = data.participants || [];
+          const msgs = data.messages || (Array.isArray(data) ? data : []);
+
+          if (Array.isArray(participants)) {
+            for (const p of participants) {
+              const rawName = typeof p === 'string' ? p : (p?.name || '');
+              const normName = normalizeLegacyText(rawName).trim();
+              if (normName.length > 0) {
+                if (!threadPresence[normName]) threadPresence[normName] = new Set();
+                threadPresence[normName].add(threadKey);
+              }
+            }
+          }
+
+          for (let i = 0; i < msgs.length; i++) {
+            const rawName = msgs[i].sender_name || msgs[i].sender || msgs[i].name || '';
+            const normName = normalizeLegacyText(rawName).trim();
+            if (normName.length > 0) {
+              if (!threadPresence[normName]) threadPresence[normName] = new Set();
+              threadPresence[normName].add(threadKey);
+              msgCounts[normName] = (msgCounts[normName] || 0) + 1;
+            }
+          }
+        } catch (_e) {}
+      }
+
+      const candidateScores = Object.keys(threadPresence).map(name => {
+        const threadCount = threadPresence[name].size;
+        const msgCount = msgCounts[name] || 0;
+        const score = (threadCount * 1000000) + msgCount;
+        return { name, threadCount, msgCount, score };
+      });
+
+      candidateScores.sort((a, b) => b.score - a.score);
+
+      const topCandidates = candidateScores.map(c => c.name);
+      const bestIdentity = topCandidates.length > 0 ? topCandidates[0] : "You";
+
+      return { identity: bestIdentity, candidates: topCandidates };
+    }
+
+    // Dynamic Identity Suggestions & Auto-fill UI
+    function updateIdentitySuggestions(candidates, currentSelected) {
+      const listEl = document.getElementById('identity-datalist');
+      const chipsWrap = document.getElementById('identity-chips-wrap');
+      const sugRow = document.getElementById('identity-suggestions-row');
+      if (!chipsWrap || !listEl) return;
+
+      listEl.innerHTML = '';
+      chipsWrap.innerHTML = '';
+
+      if (candidates && candidates.length > 0) {
+        candidates.slice(0, 15).forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          listEl.appendChild(opt);
+        });
+
+        candidates.slice(0, 5).forEach(name => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'identity-candidate-chip' + (areNamesEqual(name, currentSelected) ? ' active' : '');
+          btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><span>${name}</span>`;
+          btn.onclick = () => {
+            const inputEl = document.getElementById('input-identity-name');
+            if (inputEl) {
+              inputEl.value = name;
+              adjustInputWidth(inputEl);
+            }
+            document.querySelectorAll('.identity-candidate-chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+          };
+          chipsWrap.appendChild(btn);
+        });
+
+        if (sugRow) sugRow.style.display = 'flex';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const inputEl = document.getElementById('input-identity-name');
+      if (inputEl) {
+        inputEl.addEventListener('input', (e) => {
+          const curVal = e.target.value.trim();
+          adjustInputWidth(e.target);
+          document.querySelectorAll('.identity-candidate-chip').forEach(chip => {
+            const chipName = chip.querySelector('span')?.textContent || chip.textContent;
+            chip.classList.toggle('active', areNamesEqual(chipName, curVal));
+          });
+        });
+      }
+    });
+
+    // Helper to update full-screen progress animation
+    function updateLoadingProgress(pct, statusTextMsg) {
+      const overlay = document.getElementById('loading-overlay');
+      const fill = document.getElementById('laser-bar-fill');
+      const pctText = document.getElementById('loading-pct-text');
+      const statusEl = document.getElementById('loading-status-detail');
+
+      if (overlay) overlay.style.setProperty('--progress-pct', pct + '%');
+      if (fill) {
+        fill.style.width = pct + '%';
+        fill.style.height = pct + '%';
+      }
+      if (pctText) pctText.textContent = pct + '%';
+      if (statusEl && statusTextMsg) statusEl.textContent = statusTextMsg;
+    }
+
+    // FULLSCREEN LOADING BAR ANIMATION (SCREEN 1 -> SCREEN 2)
+    async function processZipFileWithAnimation(zipFile) {
+      if (!zipFile) return;
+
+      const loadingOverlay = document.getElementById('loading-overlay');
+      loadingOverlay.classList.add('active');
+      updateLoadingProgress(10, currentLang === 'VI' ? 'Đang đọc file .zip vào bộ nhớ đệm...' : 'Reading .zip archive into browser memory...');
+
+      parsedFiles = [];
+
+      try {
+        const zip = await JSZip.loadAsync(zipFile);
+        const jsonEntries = Object.keys(zip.files).filter(k => 
+          !zip.files[k].dir && 
+          k.toLowerCase().endsWith('.json') && 
+          !k.startsWith('__MACOSX') &&
+          !k.includes('/.DS_Store')
+        );
+
+        if (jsonEntries.length === 0) {
+          loadingOverlay.classList.remove('active');
+          showToast(UI_STRINGS[currentLang].toastNoJson);
+          return;
+        }
+
+        updateLoadingProgress(35, currentLang === 'VI' ? `Giải nén ${jsonEntries.length} file dữ liệu...` : `Extracting ${jsonEntries.length} JSON data files...`);
+
+        const threadMap = {};
+        let done = 0;
+
+        for (const pathKey of jsonEntries) {
+          const text = await zip.files[pathKey].async('string');
+          done++;
+
+          const parts = pathKey.split('/');
+          const fileName = parts[parts.length - 1];
+          const isMessageChunk = /^message_\d+\.json$/i.test(fileName) || fileName === 'message.json';
+          const threadKey = isMessageChunk ? parts.slice(0, -1).join('/') : pathKey;
+
+          if (!threadMap[threadKey]) {
+            threadMap[threadKey] = [];
+          }
+          threadMap[threadKey].push({ path: pathKey, content: text });
+
+          if (done % 8 === 0 || done === jsonEntries.length) {
+            const currentPct = 35 + Math.round((done / jsonEntries.length) * 45);
+            updateLoadingProgress(currentPct, currentLang === 'VI' ? `Đã đọc ${done}/${jsonEntries.length} files...` : `Processed ${done}/${jsonEntries.length} conversation parts...`);
+          }
+        }
+
+                parsedFiles = Object.entries(threadMap).map(([threadPath, chunks]) => {
+          if (chunks.length === 1) {
+            return { path: chunks[0].path, content: chunks[0].content };
+          }
+          try {
+            let primaryObj = JSON.parse(chunks[0].content);
+            let combinedMsgs = Array.isArray(primaryObj.messages) ? [...primaryObj.messages] : (Array.isArray(primaryObj) ? [...primaryObj] : []);
+            
+            for (let i = 1; i < chunks.length; i++) {
+              try {
+                const extraObj = JSON.parse(chunks[i].content);
+                const extraMsgs = Array.isArray(extraObj.messages) ? extraObj.messages : (Array.isArray(extraObj) ? extraObj : []);
+                combinedMsgs = combinedMsgs.concat(extraMsgs);
+              } catch (_e) {}
+            }
+            if (Array.isArray(primaryObj)) {
+              return { path: threadPath + "/combined.json", content: JSON.stringify(combinedMsgs) };
+            } else {
+              primaryObj.messages = combinedMsgs;
+              return { path: threadPath + "/combined.json", content: JSON.stringify(primaryObj) };
+            }
+          } catch (_e) {
+            return { path: chunks[0].path, content: chunks[0].content };
+          }
+        });
+
+        updateLoadingProgress(92, currentLang === 'VI' ? 'Đang nhận diện danh tính người dùng...' : 'Detecting your identity in conversations...');
+
+        const detectionResult = detectSenderIdentity(parsedFiles);
+        detectedIdentity = detectionResult.identity;
+        candidateIdentities = detectionResult.candidates;
+
+        const inputEl = document.getElementById('input-identity-name');
+        if (inputEl) {
+          inputEl.value = detectedIdentity;
+          adjustInputWidth(inputEl);
+        }
+
+        updateIdentitySuggestions(candidateIdentities, detectedIdentity);
+        updateLoadingProgress(100, currentLang === 'VI' ? 'Hoàn tất giải nén!' : 'Extraction Complete!');
+
+        setTimeout(() => {
+          loadingOverlay.classList.remove('active');
+          navigateToScreen('screen-customize');
+        }, 400);
+
+      } catch (err) {
+        console.error("Error extracting zip:", err);
+        loadingOverlay.classList.remove('active');
+        showToast(currentLang === 'VI' ? 'Lỗi giải nén file .zip. Vui lòng kiểm tra định dạng.' : 'Failed to unpack .zip archive. Please verify the archive.');
+      }
+    }
+
+    function safeFormatDate(ts) {
+      if (!ts || isNaN(ts) || !isFinite(ts) || ts <= 0) return "";
+      try {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return "";
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      } catch (_e) {
+        return "";
+      }
+    }
+
+    function parseTimestampMs(m) {
+      if (!m) return null;
+      let val = m.timestamp_ms ?? m.timestamp ?? m.timestampMs ?? m.date ?? m.created_at;
+      if (val === null || val === undefined) return null;
+      let num = Number(val);
+      if (isNaN(num) || !isFinite(num) || num <= 0) {
+        const parsed = new Date(val).getTime();
+        return (isNaN(parsed) || !isFinite(parsed) || parsed <= 0) ? null : parsed;
+      }
+      if (num < 10000000000) {
+        num = num * 1000;
+      }
+      if (num > 10000000000000) {
+        while (num > 10000000000000) {
+          num = Math.floor(num / 1000);
+        }
+      }
+      return num;
+    }
+
+    function extractMessageContent(m) {
+      if (!m) return "";
+      let raw = "";
+      if (typeof m.content === "string") raw = m.content;
+      else if (typeof m.text === "string") raw = m.text;
+      else if (typeof m.message === "string") raw = m.message;
+      else if (m.text && typeof m.text.body === "string") raw = m.text.body;
+      else if (m.share && typeof m.share.link === "string") raw = m.share.link;
+      return String(raw).normalize("NFC").trim();
+    }
+
+    function extractSenderName(m) {
+      if (!m) return "";
+      const raw = m.sender_name || m.senderName || m.sender || m.name || m.author || "";
+      const str = typeof raw === "string" ? raw : (raw?.name || "");
+      return String(str).normalize("NFC").trim();
+    }
+
+    function isQualityMessage(text) {
+      if (!text || typeof text !== "string") return false;
+      const t = text.trim();
+      if (t.length < 5) return false;
+      const lower = t.toLowerCase();
+      const simpleReplies = [
+        "ok", "oke", "oki", "uk", "uh", "ừ", "uhm", "um", "ừm", "yep", "yes", "no",
+        "k", "ko", "khong", "không", "hả", "ha", "the ha", "the ah", "the à", "vậy hả",
+        "vay ha", "dc", "được", "roi", "rồi", "chua", "chưa", "dạ", "vâng", "vang",
+        "vl", "vcl", "vch", "vc", "cl", "dcm", "đm", "dm", "haha", "hihi", "hehe", "lol",
+        "lmao", "rofl", "kkk", "keke", "nice", "cool", "ty", "tks", "thanks", "cảm ơn", "cam on"
+      ];
+      if (simpleReplies.includes(lower)) return false;
+      if (/^(.)\1+$/.test(lower)) return false;
+      if (/^(ha|he|hi|ho|kk|ka|le|lol|lmao|vcl|vl){2,}$/.test(lower)) return false;
+      return true;
+    }
+
+
+
+    function analyzeConversation(jsonContent, pathKey, myName) {
+      try {
+        let data = jsonContent;
+        if (typeof jsonContent === "string") {
+          try {
+            data = JSON.parse(jsonContent);
+          } catch (_e) {
+            return null;
+          }
+        }
+        if (!data) return null;
+
+        const msgs = Array.isArray(data.messages) ? data.messages :
+                     Array.isArray(data) ? data :
+                     Array.isArray(data.message_list) ? data.message_list :
+                     Array.isArray(data.conversation) ? data.conversation :
+                     Array.isArray(data.chat) ? data.chat : [];
+        if (!Array.isArray(msgs) || msgs.length === 0) return null;
+
+        const pathParts = pathKey.split('/');
+        const fileName = pathParts[pathParts.length - 1].replace(/\.json$/i, '');
+        let displayName = normalizeLegacyText(data.name || data.title || fileName);
+
+        if (Array.isArray(data.participants) && data.participants.length === 2) {
+          const otherP = data.participants.find(p => {
+            const pName = typeof p === 'string' ? p : (p?.name || '');
+            return !areNamesEqual(pName, myName);
+          });
+          if (otherP) {
+            const otherName = typeof otherP === 'string' ? otherP : (otherP?.name || '');
+            if (otherName) displayName = normalizeLegacyText(otherName);
+          }
+        }
+
+        if (displayName.toLowerCase().startsWith("message_") || displayName === "messages" || displayName === "combined") {
+          displayName = normalizeLegacyText(pathParts[pathParts.length - 2] || fileName);
+        }
+        displayName = displayName.replace(/_\d+$/, "").trim();
+
+        let myMsgs = 0;
+        let oppositeMsgs = 0;
+        let myQuality = 0;
+        let oppositeQuality = 0;
+        let myChars = 0;
+        let oppositeChars = 0;
+        let longestMsgChars = 0;
+
+        let nightOwlMsgs = 0;
+        let witchingHourMsgs = 0;
+        let earlyBirdMsgs = 0;
+        let weekendMsgs = 0;
+        let laughCount = 0;
+        let questionCount = 0;
+        let ellipsisCount = 0;
+        let capsCount = 0;
+        let mediaCount = 0;
+
+        const dayCounts = {};
+        const dayCountsOpp = {};
+        const dayCountsMy = {};
+        const dayCountsNight = {};
+        const dayCountsQuality = {};
+        const dayCountsChars = {};
+        const dayOfWeekCounts = [0, 0, 0, 0, 0, 0, 0];
+
+        let minTs = null;
+        let maxTs = null;
+
+        let maxBurstCount = 0;
+        let currentBurstCount = 0;
+        let lastBurstSender = null;
+
+        const replyDeltasThemToMe = [];
+        const replyDeltasMeToThem = [];
+        let prevMsg = null;
+        let maxGhostingGapSecs = 0;
+
+        const sortedMsgs = [...msgs].sort((a, b) => {
+          const tA = parseTimestampMs(a) || 0;
+          const tB = parseTimestampMs(b) || 0;
+          return tA - tB;
+        });
+
+        for (const m of sortedMsgs) {
+          const sender = extractSenderName(m);
+          const isMe = areNamesEqual(sender, myName);
+
+          const ts = parseTimestampMs(m);
+          if (ts) {
+            if (minTs === null || ts < minTs) minTs = ts;
+            if (maxTs === null || ts > maxTs) maxTs = ts;
+
+            const dt = new Date(ts);
+            const dayKey = dt.toISOString().slice(0, 10);
+            dayCounts[dayKey] = (dayCounts[dayKey] || 0) + 1;
+            dayOfWeekCounts[dt.getDay()] = (dayOfWeekCounts[dt.getDay()] || 0) + 1;
+
+            if (isMe) {
+              dayCountsMy[dayKey] = (dayCountsMy[dayKey] || 0) + 1;
+            } else {
+              dayCountsOpp[dayKey] = (dayCountsOpp[dayKey] || 0) + 1;
+            }
+
+            const hr = dt.getHours();
+            if (hr >= 23 || hr < 4) {
+              nightOwlMsgs++;
+              dayCountsNight[dayKey] = (dayCountsNight[dayKey] || 0) + 1;
+            }
+            if (hr >= 2 && hr < 4) {
+              witchingHourMsgs++;
+            }
+            if (hr >= 5 && hr < 9) {
+              earlyBirdMsgs++;
+            }
+            const dayOfWeek = dt.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+              weekendMsgs++;
+            }
+
+            if (prevMsg && prevMsg.ts) {
+              const deltaSecs = (ts - prevMsg.ts) / 1000;
+              if (deltaSecs > 0) {
+                if (deltaSecs > maxGhostingGapSecs) {
+                  maxGhostingGapSecs = deltaSecs;
+                }
+                if (prevMsg.isMe !== isMe && deltaSecs <= 86400) {
+                  if (prevMsg.isMe && !isMe) {
+                    replyDeltasThemToMe.push(deltaSecs);
+                  } else if (!prevMsg.isMe && isMe) {
+                    replyDeltasMeToThem.push(deltaSecs);
+                  }
+                }
+              }
+            }
+            prevMsg = { ts, isMe };
+          }
+
+          if (sender === lastBurstSender) {
+            currentBurstCount++;
+          } else {
+            currentBurstCount = 1;
+            lastBurstSender = sender;
+          }
+          if (currentBurstCount > maxBurstCount) {
+            maxBurstCount = currentBurstCount;
+          }
+
+          const content = extractMessageContent(m);
+          const hasMedia = (m.photos && m.photos.length > 0) ||
+                           (m.videos && m.videos.length > 0) ||
+                           (m.audio_files && m.audio_files.length > 0) ||
+                           (m.files && m.files.length > 0) ||
+                           (m.media && m.media.length > 0) ||
+                           (m.sticker !== undefined);
+          if (hasMedia) mediaCount++;
+
+          const msgLength = content.length;
+          if (msgLength > longestMsgChars) {
+            longestMsgChars = msgLength;
+          }
+
+          const quality = isQualityMessage(content) || hasMedia;
+          if (ts && quality) {
+            const dt = new Date(ts);
+            const dayKey = dt.toISOString().slice(0, 10);
+            dayCountsQuality[dayKey] = (dayCountsQuality[dayKey] || 0) + 1;
+          }
+
+          if (ts && msgLength > 0) {
+            const dt = new Date(ts);
+            const dayKey = dt.toISOString().slice(0, 10);
+            dayCountsChars[dayKey] = (dayCountsChars[dayKey] || 0) + msgLength;
+          }
+
+          if (isMe) {
+            myMsgs++;
+            myChars += msgLength;
+            if (quality) myQuality++;
+          } else {
+            oppositeMsgs++;
+            oppositeChars += msgLength;
+            if (quality) oppositeQuality++;
+          }
+
+          const lower = content.toLowerCase();
+          if (/(haha|hihi|hehe|lol|lmao|rofl)/.test(lower)) laughCount++;
+          if (content.includes("?")) questionCount++;
+          if (content.includes("...") || content.includes("…")) ellipsisCount++;
+          if (content.length >= 6 && content === content.toUpperCase() && /[A-Z]/.test(content)) capsCount++;
+        }
+
+        const totalMsgs = myMsgs + oppositeMsgs;
+        if (totalMsgs === 0) return null;
+
+        const totalChars = myChars + oppositeChars;
+        const totalWords = Math.round(totalChars / 5);
+        const qualityMessagesCount = myQuality + oppositeQuality;
+        const qualityPercent = totalMsgs > 0 ? ((qualityMessagesCount / totalMsgs) * 100).toFixed(1) : "0.0";
+        const oppQualityPercent = oppositeMsgs > 0 ? (oppositeQuality / oppositeMsgs) * 100 : 0;
+        const oppLowQualityPercent = oppositeMsgs > 0 ? ((oppositeMsgs - oppositeQuality) / oppositeMsgs) * 100 : 0;
+        const avgCharsOpp = oppositeMsgs > 0 ? oppositeChars / oppositeMsgs : 0;
+
+        let maxStreak = 0;
+        let currentStreak = 0;
+        let prevDateObj = null;
+        const sortedDays = Object.keys(dayCounts).sort();
+        for (const dStr of sortedDays) {
+          const curDateObj = new Date(dStr);
+          if (prevDateObj) {
+            const diffDays = Math.round((curDateObj - prevDateObj) / (1000 * 60 * 60 * 24));
+            if (diffDays === 1) {
+              currentStreak++;
+            } else if (diffDays > 1) {
+              currentStreak = 1;
+            }
+          } else {
+            currentStreak = 1;
+          }
+          if (currentStreak > maxStreak) maxStreak = currentStreak;
+          prevDateObj = curDateObj;
+        }
+
+        let peakDayDate = "";
+        let peakDayCount = 0;
+        for (const [dStr, cnt] of Object.entries(dayCounts)) {
+          if (cnt > peakDayCount) {
+            peakDayCount = cnt;
+            peakDayDate = dStr;
+          }
+        }
+
+        let avgReplySecs = null;
+        if (replyDeltasThemToMe.length > 0) {
+          const sum = replyDeltasThemToMe.reduce((acc, v) => acc + v, 0);
+          avgReplySecs = sum / replyDeltasThemToMe.length;
+        }
+
+        function formatReplyDuration(secs) {
+          if (secs === null || secs === undefined) return "N/A";
+          if (secs < 60) return Math.round(secs) + "s";
+          if (secs < 3600) return Math.round(secs / 60) + "m";
+          return (secs / 3600).toFixed(1) + "h";
+        }
+
+        const avgReplyFormatted = formatReplyDuration(avgReplySecs);
+        const myShare = (myMsgs / totalMsgs) * 100;
+        const oppShare = (oppositeMsgs / totalMsgs) * 100;
+        const balanceFactor = 1 - (Math.abs(myMsgs - oppositeMsgs) / totalMsgs);
+        const activeDaysCount = Object.keys(dayCounts).length;
+        const totalCalendarDays = minTs && maxTs ? Math.max(1, Math.round((maxTs - minTs) / (1000 * 60 * 60 * 24))) : 1;
+        const dramaticScore = activeDaysCount > 0 ? (totalMsgs / activeDaysCount) : 0;
+        const maxGhostingGapDays = Math.round(maxGhostingGapSecs / 86400);
+
+        return {
+          name: displayName,
+          totalMsgs,
+          myMsgs,
+          oppositeMsgs,
+          myShare,
+          oppShare,
+          myQuality,
+          oppositeQuality,
+          oppQualityPercent,
+          oppLowQualityPercent,
+          qualityMessagesCount,
+          qualityPercent: parseFloat(qualityPercent),
+          totalChars,
+          myChars,
+          oppositeChars,
+          avgCharsOpp,
+          totalWords,
+          firstTs: minTs,
+          lastTs: maxTs,
+          firstDate: minTs ? new Date(minTs).toISOString().slice(0, 10) : "",
+          lastDate: maxTs ? new Date(maxTs).toISOString().slice(0, 10) : "",
+          totalDays: totalCalendarDays,
+          activeDaysCount,
+          maxStreak,
+          peakDayDate,
+          peakDayCount,
+          dramaticScore,
+          avgReplySecs,
+          avgReplyFormatted,
+          maxBurstCount,
+          longestMsgChars,
+          balanceFactor,
+          nightOwlMsgs,
+          nightOwlPercent: totalMsgs > 0 ? (nightOwlMsgs / totalMsgs) * 100 : 0,
+          witchingHourMsgs,
+          earlyBirdMsgs,
+          earlyBirdPercent: totalMsgs > 0 ? (earlyBirdMsgs / totalMsgs) * 100 : 0,
+          weekendMsgs,
+          weekendPercent: totalMsgs > 0 ? (weekendMsgs / totalMsgs) * 100 : 0,
+          laughCount,
+          questionCount,
+          ellipsisCount,
+          capsCount,
+          mediaCount,
+          maxGhostingGapDays,
+          charDiff: Math.abs(myChars - oppositeChars),
+          dayCounts,
+          dayCountsOpp,
+          dayCountsMy,
+          dayCountsNight,
+          dayCountsQuality,
+          dayCountsChars,
+          dayOfWeekCounts
+        };
+      } catch (_e) {
+        return null;
+      }
+    }
+
+    // FULLSCREEN SCANNING ANIMATION (SCREEN 2 -> SCREEN 3)
+    function generateWrappedDashboard() {
+      const inputEl = document.getElementById('input-identity-name');
+      const myName = inputEl && inputEl.value.trim() ? inputEl.value.trim() : (detectedIdentity || "You");
+      const lang = chosenReportLang;
+      const isVi = lang === 'VI';
+
+      const loadingOverlay = document.getElementById('loading-overlay');
+      loadingOverlay.classList.add('active');
+      updateLoadingProgress(30, isVi ? 'Đang tổng hợp các chỉ số tương tác...' : 'Aggregating interaction dynamics & categories...');
+
+      setTimeout(() => {
+        const conversations = [];
+        let grandTotalMessages = 0;
+        let grandTotalChars = 0;
+        let grandTotalWords = 0;
+        let earliestTs = null;
+        let latestTs = null;
+
+        for (const file of parsedFiles) {
+          const res = analyzeConversation(file.content, file.path, myName);
+          if (res) {
+            conversations.push(res);
+            grandTotalMessages += res.totalMsgs;
+            grandTotalChars += res.totalChars;
+            grandTotalWords += res.totalWords || 0;
+            if (res.firstTs && (earliestTs === null || res.firstTs < earliestTs)) earliestTs = res.firstTs;
+            if (res.lastTs && (latestTs === null || res.lastTs > latestTs)) latestTs = res.lastTs;
+          }
+        }
+
+        if (conversations.length === 0) {
+          loadingOverlay.classList.remove('active');
+          showToast(isVi ? 'Không thể trích xuất cuộc trò chuyện nào hợp lệ.' : 'Could not extract any valid conversations.');
+          return;
+        }
+
+        updateLoadingProgress(85, isVi ? 'Đang kết xuất bảng xếp hạng & biểu đồ...' : 'Rendering leaderboard rankings & activity graphs...');
+
+        globalOverviewData = {
+          conversations,
+          myName,
+          lang,
+          grandTotalMessages,
+          grandTotalChars,
+          grandTotalWords,
+          earliestTs,
+          latestTs
+        };
+
+        renderSpatialDashboard(globalOverviewData);
+        updateLoadingProgress(100);
+
+        setTimeout(() => {
+          loadingOverlay.classList.remove('active');
+          navigateToScreen('screen-dashboard');
+        }, 350);
+      }, 80);
+    }
+
+    // DASHBOARD RENDERING ENGINE (SCREEN 3)
+    function renderSpatialDashboard(data) {
+      const { conversations, myName, lang, grandTotalMessages, grandTotalChars, grandTotalWords, earliestTs, latestTs } = data;
+      const isVi = lang === 'VI';
+      const globalTotalDays = earliestTs && latestTs ? Math.max(1, Math.round((latestTs - earliestTs) / (1000 * 60 * 60 * 24))) : 0;
+      const startDateFormatted = safeFormatDate(earliestTs);
+      const endDateFormatted = safeFormatDate(latestTs);
+
+      const dateRangeEl = document.getElementById('dash-date-range');
+      if (dateRangeEl) {
+        dateRangeEl.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>${startDateFormatted} → ${endDateFormatted}</span>`;
+      }
+
+      const authorByEl = document.getElementById('txt-dash-by');
+      const authorNameEl = document.getElementById('dash-author-name');
+      if (authorByEl) {
+        authorByEl.textContent = isVi ? 'Thực hiện bởi' : 'Created by';
+      }
+      if (authorNameEl) {
+        authorNameEl.textContent = myName || detectedIdentity || 'You';
+      }
+      const btnShareEl = document.getElementById('txt-btn-share');
+      if (btnShareEl) {
+        btnShareEl.textContent = isVi ? 'Chia Sẻ' : 'Share';
+      }
+
+      // Calculations
+      const hpTimes = (grandTotalChars / 6100000).toFixed(2);
+      const globalNightOwlMsgs = conversations.reduce((acc, x) => acc + x.nightOwlMsgs, 0);
+      const globalNightOwlPercent = grandTotalMessages > 0 ? ((globalNightOwlMsgs / grandTotalMessages) * 100).toFixed(1) : "0.0";
+      const topNightOwlContact = [...conversations].sort((a, b) => b.nightOwlMsgs - a.nightOwlMsgs)[0] || { name: "N/A", nightOwlMsgs: 0 };
+
+      const globalWitchingMsgs = conversations.reduce((acc, x) => acc + x.witchingHourMsgs, 0);
+      const globalWitchingPercent = grandTotalMessages > 0 ? ((globalWitchingMsgs / grandTotalMessages) * 100).toFixed(1) : "0.0";
+      const topWitchingContact = [...conversations].sort((a, b) => b.witchingHourMsgs - a.witchingHourMsgs)[0] || { name: "N/A", witchingHourMsgs: 0 };
+
+      const globalLaughMsgs = conversations.reduce((acc, x) => acc + x.laughCount, 0);
+      const topLaughContact = [...conversations].sort((a, b) => b.laughCount - a.laughCount)[0] || { name: "N/A", laughCount: 0 };
+
+      const globalQuestions = conversations.reduce((acc, x) => acc + x.questionCount, 0);
+      const globalQuestionPercent = grandTotalMessages > 0 ? ((globalQuestions / grandTotalMessages) * 100).toFixed(1) : "0.0";
+      const topQuestionContact = [...conversations].sort((a, b) => b.questionCount - a.questionCount)[0] || { name: "N/A", questionCount: 0 };
+
+      const globalEllipsis = conversations.reduce((acc, x) => acc + x.ellipsisCount, 0);
+      const topEllipsisContact = [...conversations].sort((a, b) => b.ellipsisCount - a.ellipsisCount)[0] || { name: "N/A", ellipsisCount: 0 };
+
+      const globalCaps = conversations.reduce((acc, x) => acc + x.capsCount, 0);
+      const topCapsContact = [...conversations].sort((a, b) => b.capsCount - a.capsCount)[0] || { name: "N/A", capsCount: 0 };
+
+      const dayNames = isVi ? ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"] : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const globalDaysOfWeek = [0, 0, 0, 0, 0, 0, 0];
+      conversations.forEach(c => (c.dayOfWeekCounts || []).forEach((cnt, idx) => { globalDaysOfWeek[idx] += cnt; }));
+      let minDayIdx = 0, maxDayIdx = 0;
+      globalDaysOfWeek.forEach((cnt, idx) => {
+        if (cnt < globalDaysOfWeek[minDayIdx]) minDayIdx = idx;
+        if (cnt > globalDaysOfWeek[maxDayIdx]) maxDayIdx = idx;
+      });
+      const quietestDayName = dayNames[minDayIdx];
+      const busiestDayName = dayNames[maxDayIdx];
+
+      const globalMonthCounts = {};
+      conversations.forEach(c => {
+        Object.entries(c.dayCounts || {}).forEach(([dStr, cnt]) => {
+          const mKey = dStr.slice(0, 7);
+          globalMonthCounts[mKey] = (globalMonthCounts[mKey] || 0) + cnt;
+        });
+      });
+      const sortedMonths = Object.entries(globalMonthCounts).sort((a, b) => b[1] - a[1]);
+      const peakMonthStr = sortedMonths[0] ? sortedMonths[0][0] : "N/A";
+      const calmMonthStr = sortedMonths[sortedMonths.length - 1] ? sortedMonths[sortedMonths.length - 1][0] : "N/A";
+
+      const topEssayPair = [...conversations].filter(x => x.totalMsgs >= 100).map(x => ({ ...x, avgCombinedChars: x.totalChars / x.totalMsgs })).sort((a, b) => b.avgCombinedChars - a.avgCombinedChars)[0] || { name: "N/A", avgCombinedChars: 0 };
+
+      const nowTs = Date.now();
+      const topVanishing = [...conversations].filter(x => x.lastTs && ((nowTs - x.lastTs) / 86400000) >= 90).map(x => ({ ...x, daysSinceLastMsg: Math.round((nowTs - x.lastTs) / 86400000) })).sort((a, b) => b.totalMsgs - a.totalMsgs)[0] || { name: "N/A", totalMsgs: 0, daysSinceLastMsg: 0 };
+
+      const tenKClubCount = conversations.filter(x => x.totalMsgs >= 10000).length;
+      const caffeineCups = Math.max(1, Math.round(globalNightOwlMsgs / 40)).toLocaleString();
+      const walkingKm = Math.round((grandTotalChars * 0.75) / 1000).toLocaleString();
+      const paperbackPages = Math.round(grandTotalChars / 2500);
+      const bookVolumes = Math.max(1, Math.round(paperbackPages / 350));
+
+      const topFastestContact = [...conversations].filter(x => x.avgReplySecs !== null && x.avgReplySecs > 0).sort((a, b) => a.avgReplySecs - b.avgReplySecs)[0] || { name: "N/A", avgReplyFormatted: "N/A" };
+      const topGhostContact = [...conversations].sort((a, b) => b.maxGhostingGapDays - a.maxGhostingGapDays)[0] || { name: "N/A", maxGhostingGapDays: 0 };
+      const topEarlyBirdContact = [...conversations].sort((a, b) => b.earlyBirdMsgs - a.earlyBirdMsgs)[0] || { name: "N/A", earlyBirdMsgs: 0 };
+      const topBalanceContact = [...conversations].filter(x => x.totalMsgs >= 200 && x.oppositeMsgs >= 50).sort((a, b) => b.balanceFactor - a.balanceFactor)[0] || { name: "N/A", myShare: 50, oppShare: 50, totalMsgs: 0 };
+      const topBurstContact = [...conversations].sort((a, b) => b.maxBurstCount - a.maxBurstCount)[0] || { name: "N/A", maxBurstCount: 0 };
+      const topStreakContact = [...conversations].sort((a, b) => b.maxStreak - a.maxStreak)[0] || { name: "N/A", maxStreak: 0 };
+
+      const ICONS = {
+        book: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
+        moon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`,
+        smile: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>`,
+        help: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
+        dots: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>`,
+        caps: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>`,
+        calendar: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+        chart: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
+        essay: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`,
+        archive: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>`,
+        crown: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"></path></svg>`,
+        coffee: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>`,
+        walk: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 4a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path><path d="M7 22l4-8 2 3 4-1"></path><path d="M14 13l3-4-3-3-4 3 2 4"></path></svg>`,
+        speed: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>`,
+        ghost: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 10h.01"></path><path d="M15 10h.01"></path><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"></path></svg>`,
+        sun: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`,
+        balance: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"></path><path d="M6 8l6-5 6 5"></path><path d="M3 13l3-5 3 5a3 3 0 0 1-6 0z"></path><path d="M15 13l3-5 3 5a3 3 0 0 1-6 0z"></path></svg>`,
+        zap: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`,
+        fire: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>`
+      };
+
+      const renderCard = (iconSvg, tag, quote, footer) => `
+        <div class="insight-spatial-card spoiled" onclick="revealCardSpoiler(this)">
+          <div class="card-top-action-bar">
+            <div class="card-insight-pill">
+              ${iconSvg}
+              <span>${tag}</span>
+            </div>
+            <button class="card-download-btn" onclick="saveCardAsImage(this, event)" title="${isVi ? 'Lưu ảnh thẻ này' : 'Save card as image'}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
+          </div>
+          <div class="insight-quote-frame">
+            <div class="insight-main-quote">${quote}</div>
+            <div class="spoiler-unlock-badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span>${isVi ? 'Mở khoá' : 'Reveal'}</span>
+            </div>
+          </div>
+          <div class="card-bottom-footer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.7"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>${footer}</span>
+          </div>
+          <div class="card-export-watermark">bit.ly/buddies-wrapped</div>
+        </div>
+      `;
+
+      // Categories
+      const categories = [
+        { title: isVi ? "Chỉ Số Chất Lượng Toàn Diện" : "Best Value Score", sortFn: (a, b) => b.totalMsgs - a.totalMsgs, valFn: x => x.totalMsgs.toLocaleString() + (isVi ? " tin" : " msgs"), metaFn: x => `${x.qualityPercent}% ` + (isVi ? 'chất lượng' : 'quality') },
+        { title: isVi ? "Tin Nhắn Đối Phương Gửi" : "Messages Sent by Them", sortFn: (a, b) => b.oppositeMsgs - a.oppositeMsgs, valFn: x => x.oppositeMsgs.toLocaleString() + (isVi ? " tin" : " msgs"), metaFn: x => x.oppShare.toFixed(1) + (isVi ? '% cuộc trò chuyện' : '% of conversation') },
+        { title: isVi ? "Tin Nhắn Chất Lượng Từ Họ" : "Quality Messages from Them", sortFn: (a, b) => b.oppositeQuality - a.oppositeQuality, valFn: x => x.oppositeQuality.toLocaleString() + (isVi ? " tin" : " msgs"), metaFn: x => x.oppQualityPercent.toFixed(1) + (isVi ? '% chất lượng' : '% quality rate') },
+        { title: isVi ? "Ký Tự Do Đối Phương Viết" : "Characters Written by Them", sortFn: (a, b) => b.oppositeChars - a.oppositeChars, valFn: x => (x.oppositeChars / 1000).toFixed(1) + "k chars", metaFn: x => x.oppositeChars.toLocaleString() + (isVi ? ' ký tự' : ' chars') },
+        { title: isVi ? "Tốc Độ Trả Lời (Họ → Tôi)" : "Reply Speed (Them → Me)", sortFn: (a, b) => (a.avgReplySecs || 9999999) - (b.avgReplySecs || 9999999), filterFn: x => x.avgReplySecs > 0, valFn: x => x.avgReplyFormatted, metaFn: x => isVi ? ('Trung bình ' + Math.round(x.avgReplySecs) + 's') : (Math.round(x.avgReplySecs) + 's average') },
+        { title: isVi ? "Quán Quân Cú Đêm (23h - 4h)" : "Night Owl Champion (11 PM - 4 AM)", sortFn: (a, b) => b.nightOwlMsgs - a.nightOwlMsgs, valFn: x => x.nightOwlMsgs.toLocaleString() + (isVi ? " tin" : " msgs"), metaFn: x => x.nightOwlPercent.toFixed(1) + (isVi ? '% tin đêm' : '% night msgs') },
+        { title: isVi ? "Quán Quân Dậy Sớm (5h - 9h)" : "Early Bird Champion (5 AM - 9 AM)", sortFn: (a, b) => b.earlyBirdMsgs - a.earlyBirdMsgs, valFn: x => x.earlyBirdMsgs.toLocaleString() + (isVi ? " tin" : " msgs"), metaFn: x => x.earlyBirdPercent.toFixed(1) + (isVi ? '% sáng sớm' : '% early msgs') },
+        { title: isVi ? "Tỷ Trọng Nhắn Cuối Tuần" : "Weekend Chat Intensity", sortFn: (a, b) => b.weekendMsgs - a.weekendMsgs, valFn: x => x.weekendMsgs.toLocaleString() + (isVi ? " tin" : " msgs"), metaFn: x => x.weekendPercent.toFixed(1) + (isVi ? '% cuối tuần' : '% on weekends') },
+        { title: isVi ? "Bắn Tin Nhắn Liên Thanh" : "Rapid-Fire Message Bursts", sortFn: (a, b) => b.maxBurstCount - a.maxBurstCount, valFn: x => x.maxBurstCount + (isVi ? " tin liên tiếp" : " in a row"), metaFn: x => isVi ? "Lượt gửi tin liên tiếp" : "Max consecutive burst" },
+        { title: isVi ? "Tin Nhắn Đơn Dài Nhất" : "Longest Single Monologue", sortFn: (a, b) => b.longestMsgChars - a.longestMsgChars, valFn: x => x.longestMsgChars.toLocaleString() + " chars", metaFn: x => isVi ? "Tin nhắn văn bản dài nhất" : "Longest text entry" },
+        { title: isVi ? "Tỷ Lệ Đối Phương Gửi Cao Nhất" : "Highest Opposite Share (% They Sent)", sortFn: (a, b) => b.oppShare - a.oppShare, filterFn: x => x.totalMsgs >= 200 && x.oppositeMsgs >= 50, valFn: x => x.oppShare.toFixed(1) + "%", metaFn: x => isVi ? ('Họ ' + x.oppositeMsgs.toLocaleString() + ' vs Bạn ' + x.myMsgs.toLocaleString()) : (x.oppositeMsgs.toLocaleString() + ' sent vs ' + x.myMsgs.toLocaleString()) },
+        { title: isVi ? "Số Ngày Hoạt Động Nhiều Nhất" : "Most Active Calendar Days", sortFn: (a, b) => b.activeDaysCount - a.activeDaysCount, valFn: x => x.activeDaysCount + (isVi ? " ngày" : " days"), metaFn: x => isVi ? "Số ngày có trò chuyện" : "Days with conversation" },
+        { title: isVi ? "Cân Bằng Tương Tác 50/50" : "Mutual Balance (50/50)", sortFn: (a, b) => b.balanceFactor - a.balanceFactor, filterFn: x => x.totalMsgs >= 200 && x.oppositeMsgs >= 50, valFn: x => (x.balanceFactor * 100).toFixed(1) + "%", metaFn: x => `Bạn ${x.myShare.toFixed(1)}% vs Họ ${x.oppShare.toFixed(1)}%` },
+        { title: isVi ? "Tổng Số Tin Nhắn (Cả 2 Bên)" : "Total Messages (Both Sides)", sortFn: (a, b) => b.totalMsgs - a.totalMsgs, valFn: x => x.totalMsgs.toLocaleString() + (isVi ? " tin" : " msgs"), metaFn: x => x.firstDate + ' → ' + x.lastDate },
+        { title: isVi ? "Chuỗi Ngày Nhắn Liên Tục" : "Longest Daily Streak", sortFn: (a, b) => b.maxStreak - a.maxStreak, valFn: x => x.maxStreak + (isVi ? " ngày" : " days"), metaFn: x => isVi ? 'Ngày liên tiếp' : 'Consecutive days' },
+        { title: isVi ? "Kỷ Lục Ngày Bùng Nổ Nhất" : "Peak Day Record", sortFn: (a, b) => b.peakDayCount - a.peakDayCount, valFn: x => x.peakDayCount.toLocaleString() + (isVi ? " tin" : " msgs"), metaFn: x => (isVi ? 'ngày ' : 'on ') + x.peakDayDate }
+      ];
+
+      let categoriesHtml = "";
+      categories.forEach(cat => {
+        let list = [...conversations];
+        if (cat.filterFn) list = list.filter(cat.filterFn);
+        list.sort(cat.sortFn);
+        const topItems = list.slice(0, 3);
+        let itemsHtml = "";
+        topItems.forEach((item, idx) => {
+          const rankNum = idx + 1;
+          itemsHtml += `
+            <div class="cat-rank-row">
+              <div class="cat-rank-left">
+                <span class="cat-rank-num r${rankNum}">#${rankNum}</span>
+                <div>
+                  <div class="cat-rank-name">${item.name}</div>
+                  <div class="cat-rank-meta">${cat.metaFn(item)}</div>
+                </div>
+              </div>
+              <div class="cat-rank-val">${cat.valFn(item)}</div>
+            </div>`;
+        });
+        categoriesHtml += `
+          <div class="category-spatial-card">
+            <div class="category-card-heading">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+              <span>${cat.title}</span>
+            </div>
+            <div class="category-rank-rows">${itemsHtml}</div>
+          </div>`;
+      });
+
+      // Tables
+      let oppTableRows = "";
+      const sortedByOpp = [...conversations].sort((a, b) => b.oppositeMsgs - a.oppositeMsgs);
+      sortedByOpp.forEach((c, idx) => {
+        oppTableRows += `
+          <tr>
+            <td class="spatial-td" style="font-family:var(--font-mono); font-weight:700;">#${idx + 1}</td>
+            <td class="spatial-td" style="font-weight:700;">${c.name}</td>
+            <td class="spatial-td" style="color:var(--primary); font-weight:800; font-family:var(--font-mono);">${c.oppositeMsgs.toLocaleString()}</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.oppositeQuality.toLocaleString()} (${c.oppQualityPercent.toFixed(1)}%)</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${(c.oppositeChars / 1000).toFixed(1)}k</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.avgReplyFormatted}</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.nightOwlMsgs.toLocaleString()}</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.maxBurstCount}</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.oppShare.toFixed(1)}%</td>
+          </tr>`;
+      });
+
+      let rawTableRows = "";
+      const sortedByTotal = [...conversations].sort((a, b) => b.totalMsgs - a.totalMsgs);
+      sortedByTotal.forEach((c, idx) => {
+        rawTableRows += `
+          <tr>
+            <td class="spatial-td" style="font-family:var(--font-mono); font-weight:700;">#${idx + 1}</td>
+            <td class="spatial-td" style="font-weight:700;">${c.name}</td>
+            <td class="spatial-td" style="color:var(--primary); font-weight:800; font-family:var(--font-mono);">${c.totalMsgs.toLocaleString()}</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.myMsgs.toLocaleString()} (${c.myShare.toFixed(1)}%)</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.oppositeMsgs.toLocaleString()} (${c.oppShare.toFixed(1)}%)</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${(c.totalChars / 1000000).toFixed(2)}M</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.qualityMessagesCount.toLocaleString()} (${c.qualityPercent}%)</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.activeDaysCount} d</td>
+            <td class="spatial-td" style="font-family:var(--font-mono);">${c.maxStreak} d</td>
+            <td class="spatial-td" style="font-family:var(--font-mono); font-size:0.8rem;">${c.firstDate}</td>
+            <td class="spatial-td" style="font-family:var(--font-mono); font-size:0.8rem;">${c.lastDate}</td>
+          </tr>`;
+      });
+
+      const dynContainer = document.getElementById('dynamic-dashboard-content');
+      dynContainer.innerHTML = `
+        <div class="kpi-spatial-grid">
+          <div class="kpi-spatial-card">
+            <div class="kpi-top-row">
+              <span class="kpi-title-label">${isVi ? 'Khoảng Thời Gian' : 'Active Time Span'}</span>
+              <div class="kpi-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg></div>
+            </div>
+            <div class="kpi-giant-value">${globalTotalDays}d</div>
+            <div class="kpi-subtext">${startDateFormatted} – ${endDateFormatted}</div>
+          </div>
+
+          <div class="kpi-spatial-card">
+            <div class="kpi-top-row">
+              <span class="kpi-title-label">${isVi ? 'Tổng Cuộc Trò Chuyện' : 'Total Conversations'}</span>
+              <div class="kpi-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
+            </div>
+            <div class="kpi-giant-value">${conversations.length}</div>
+            <div class="kpi-subtext">${isVi ? 'Đã xử lý & xếp hạng' : 'Parsed & ranked in memory'}</div>
+          </div>
+
+          <div class="kpi-spatial-card">
+            <div class="kpi-top-row">
+              <span class="kpi-title-label">${isVi ? 'Tổng Số Tin Nhắn' : 'Total Messages'}</span>
+              <div class="kpi-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
+            </div>
+            <div class="kpi-giant-value">${grandTotalMessages.toLocaleString()}</div>
+            <div class="kpi-subtext">${isVi ? 'Đã gửi & nhận' : 'Sent & received'}</div>
+          </div>
+
+          <div class="kpi-spatial-card">
+            <div class="kpi-top-row">
+              <span class="kpi-title-label">${isVi ? 'Tổng Lượng Ký Tự' : 'Total Characters'}</span>
+              <div class="kpi-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg></div>
+            </div>
+            <div class="kpi-giant-value">${(grandTotalChars / 1000000).toFixed(2)}M</div>
+            <div class="kpi-subtext">${grandTotalChars.toLocaleString()} chars (~${grandTotalWords.toLocaleString()} words)</div>
+          </div>
+        </div>
+
+        <div class="boundless-tabs-row">
+          <button class="boundless-tab-btn active" onclick="switchSpatialTab(this, 'tab-insights')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <span>${isVi ? 'Key Insights & Thống Kê' : 'Key Insights & Fun Facts'}</span>
+          </button>
+          <button class="boundless-tab-btn" onclick="switchSpatialTab(this, 'tab-all')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+            <span>${isVi ? 'Bảng Xếp Hạng & Danh Mục' : 'Leaderboard & Categories'}</span>
+          </button>
+          <button class="boundless-tab-btn" onclick="switchSpatialTab(this, 'tab-graph')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            <span>${isVi ? 'Biểu Đồ Dòng Thời Gian' : 'Timeline Graphs'}</span>
+          </button>
+          <button class="boundless-tab-btn" onclick="switchSpatialTab(this, 'tab-opposite')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+            <span>${isVi ? 'Từ Phía Đối Phương' : 'Opposite Only (From Them)'}</span>
+          </button>
+          <button class="boundless-tab-btn" onclick="switchSpatialTab(this, 'tab-raw')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            <span>${isVi ? 'Tất Cả Cuộc Trò Chuyện' : 'All Conversations'}</span>
+          </button>
+        </div>
+
+        <!-- TAB 0: INSIGHTS -->
+        <div id="tab-insights" class="tab-content-panel active">
+          <div class="panel-section-header">
+            <div class="panel-section-title">${isVi ? 'Điểm Nhấn & Thống Kê Thú Vị' : 'Key Insights & Fun Facts'}</div>
+            <label class="spoiler-switch-wrap">
+              <span style="font-size:0.85rem; font-weight:700; color:var(--text-muted); display:inline-flex; align-items:center; gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                <span>${isVi ? 'Chế độ Spoiler' : 'Spoiler Mode'}</span>
+              </span>
+              <input type="checkbox" id="spoiler-toggle-box" checked onchange="toggleSpatialSpoilers(this.checked)">
+              <span class="spoiler-slider"></span>
+            </label>
+          </div>
+
+          <div class="insights-spatial-grid">
+            ${renderCard(ICONS.book, isVi ? 'Đại Thi Hào Bất Đắc Dĩ' : 'The Accidental Novelist', isVi ? `Dung lượng <strong>${(grandTotalChars / 1000000).toFixed(2)}M ký tự</strong> (~ ${grandTotalWords.toLocaleString()} từ) tương đương <strong>${hpTimes}x toàn bộ 7 tập Harry Potter</strong>!` : `Your chat volume of <strong>${(grandTotalChars / 1000000).toFixed(2)}M chars</strong> is equivalent to <strong>${hpTimes}x the Harry Potter series</strong>!`, isVi ? 'Quy chuẩn: Harry Potter (6.1M ký tự)' : 'Benchmark: Harry Potter (6.1M chars)')}
+            ${renderCard(ICONS.moon, isVi ? 'Khung Giờ Ma Thuật' : 'The Witching Hour', isVi ? `<strong>${globalWitchingPercent}%</strong> tổng tin nhắn (<strong>${globalWitchingMsgs.toLocaleString()} tin</strong>) rơi vào 2h - 4h sáng. Bạn song sinh cú đêm là <strong>${topWitchingContact.name}</strong>.` : `<strong>${globalWitchingPercent}%</strong> msgs landed between 2:00 AM - 4:00 AM. Insomniac twin: <strong>${topWitchingContact.name}</strong>.`, isVi ? 'Khung giờ 02:00 AM đến 03:59 AM' : 'Between 02:00 AM - 03:59 AM')}
+            ${renderCard(ICONS.smile, isVi ? 'Cặp Đôi Diễn Hài' : 'The Comedy Duo', isVi ? `Bạn chia sẻ <strong>${globalLaughMsgs.toLocaleString()} tiếng cười</strong> khắp các chat. Bạn diễn ăn ý: <strong>${topLaughContact.name}</strong> (${topLaughContact.laughCount.toLocaleString()} lượt cùng cười).` : `You shared <strong>${globalLaughMsgs.toLocaleString()} laughs</strong>. Comedy partner: <strong>${topLaughContact.name}</strong>.`, isVi ? 'NLP laugh detector (haha, hihi, lol, lmao, etc.)' : 'NLP laugh detector (haha, hihi, lol, lmao, etc.)')}
+            ${renderCard(ICONS.help, isVi ? 'Tâm Hồn Tò Mò' : 'The Curious Soul', isVi ? `<strong>${globalQuestionPercent}%</strong> tin nhắn kết thúc bằng dấu "?". Người hỏi nhiều nhất: <strong>${topQuestionContact.name}</strong> (${topQuestionContact.questionCount.toLocaleString()} câu hỏi).` : `<strong>${globalQuestionPercent}%</strong> msgs ended with "?". Most inquisitive: <strong>${topQuestionContact.name}</strong>.`, isVi ? 'Nhận diện dấu hỏi chấm' : 'Question mark detection')}
+            ${renderCard(ICONS.dots, isVi ? 'Nghiện Dấu Ba Chấm' : 'The Ellipsis Addict', isVi ? `Có <strong>${globalEllipsis.toLocaleString()} tin nhắn</strong> chứa "...". Kẻ ngập ngừng: <strong>${topEllipsisContact.name}</strong> (${topEllipsisContact.ellipsisCount.toLocaleString()} tin).` : `<strong>${globalEllipsis.toLocaleString()} messages</strong> had "...". Master of suspense: <strong>${topEllipsisContact.name}</strong>.`, isVi ? 'Thói quen dừng suy nghĩ (...)' : 'Trailing off hesitation')}
+            ${renderCard(ICONS.caps, isVi ? 'Cơn Lốc VIẾT HOA' : 'ALL CAPS Drama', isVi ? `<strong>${globalCaps.toLocaleString()} tin</strong> ở chế độ VIẾT HOA HẾT CỠ! Kích hoạt cảm xúc: <strong>${topCapsContact.name}</strong>.` : `<strong>${globalCaps.toLocaleString()} messages</strong> were fired in ALL CAPS! Most triggered by: <strong>${topCapsContact.name}</strong>.`, isVi ? 'VIẾT HOA từ 6 ký tự trở lên' : 'Uppercase messages 6+ chars')}
+            ${renderCard(ICONS.calendar, isVi ? 'Nhịp Điệu Trong Tuần' : 'The Weekly Rhythm', isVi ? `Năng lượng bùng nổ nhất vào các ngày <strong>${busiestDayName}</strong> và thanh bình nhất vào <strong>${quietestDayName}</strong>!` : `Energy peaks on <strong>${busiestDayName}s</strong> and lowest on <strong>${quietestDayName}s</strong>.`, isVi ? 'Phân phối theo thứ trong tuần' : 'Day of week volume')}
+            ${renderCard(ICONS.chart, isVi ? 'Mùa Nhớ Nhau Nhất' : 'Seasonal Drift', isVi ? `Mùa nhắn tin bận rộn nhất: <strong>${peakMonthStr}</strong>, êm đềm nhất: <strong>${calmMonthStr}</strong>.` : `Busiest season: <strong>${peakMonthStr}</strong>, tranquil: <strong>${calmMonthStr}</strong>.`, isVi ? 'Khối lượng theo tháng' : 'Monthly volume')}
+            ${renderCard(ICONS.essay, isVi ? 'Tâm Sự Trùng Điệp' : 'The Essay Exchange', isVi ? `Thảo luận sâu sắc nhất với <strong>${topEssayPair.name}</strong>, đạt <strong>${topEssayPair.avgCombinedChars.toFixed(1)} ký tự/tin</strong>.` : `Deepest discussions with <strong>${topEssayPair.name}</strong> averaging <strong>${topEssayPair.avgCombinedChars.toFixed(1)} chars/msg</strong>.`, isVi ? 'Độ dài trung bình kết hợp (100+ tin)' : 'Combined average msg length')}
+            ${renderCard(ICONS.archive, isVi ? 'Kỷ Niệm Ngủ Yên' : 'The Dormant Giant', isVi ? `Chat với <strong>${topVanishing.name}</strong> từng có <strong>${topVanishing.totalMsgs.toLocaleString()} tin</strong>, nhưng đã yên ắng <strong>${topVanishing.daysSinceLastMsg} ngày qua</strong>.` : `Chat with <strong>${topVanishing.name}</strong> had <strong>${topVanishing.totalMsgs.toLocaleString()} msgs</strong>, but quiet for <strong>${topVanishing.daysSinceLastMsg} days</strong>.`, isVi ? 'Cuộc trò chuyện lớn ngủ yên >90 ngày' : 'Large chat dormant >90 days')}
+            ${renderCard(ICONS.crown, isVi ? 'Hội Bạn Tri Kỷ 10K+' : 'The 10K+ VIP Club', isVi ? `Có <strong>${tenKClubCount} cuộc trò chuyện ưu tú</strong> chạm mốc <strong>10.000+ tin nhắn</strong>!` : `<strong>${tenKClubCount} elite chats</strong> reached <strong>10,000+ messages</strong>!`, isVi ? 'Vòng bạn bè thân thiết' : 'Top volume inner circle')}
+            ${renderCard(ICONS.coffee, isVi ? 'Nhiên Liệu Cà Phê' : 'Caffeine Fuel', isVi ? `Bạn trao đổi <strong>${globalNightOwlMsgs.toLocaleString()} tin nửa đêm</strong> — tương đương uống khoảng <strong>${caffeineCups} cốc espresso</strong>!` : `Exchanged <strong>${globalNightOwlMsgs.toLocaleString()} midnight msgs</strong> — ~${caffeineCups} cups of espresso!`, isVi ? 'Quy đổi 40 tin đêm = 1 cốc cà phê' : '~40 msgs per cup of coffee')}
+            ${renderCard(ICONS.walk, isVi ? 'Xuyên Việt Bằng Ngón Tay' : 'Walking Distance', isVi ? `Nếu mỗi ký tự là một bước chân, hành trình của bạn tương đương <strong>${walkingKm} km</strong>!` : `If every char was a step, you walked <strong>${walkingKm} km</strong>!`, isVi ? 'Ước tính 1 ký tự = 1 bước chân (~0.75m)' : 'Estimated 1 char = 1 step')}
+            ${renderCard(ICONS.book, isVi ? 'Pho Tiểu Thuyết Bách Khoa' : 'The Paperback Library', isVi ? `Tin nhắn của bạn sẽ in dày khoảng <strong>${paperbackPages.toLocaleString()} trang sách</strong> (<strong>${bookVolumes} tập</strong>)!` : `Your messages would fill <strong>${paperbackPages.toLocaleString()} pages</strong> (<strong>${bookVolumes} volumes</strong>)!`, isVi ? 'Tiêu chuẩn 2.500 ký tự / trang' : '~2,500 chars per page')}
+            ${renderCard(ICONS.speed, isVi ? 'Tay Đua Phản Xạ F1' : 'Formula 1 Reflexes', isVi ? `Người trả lời bạn nhanh nhất: <strong>${topFastestContact.name}</strong> (trung bình <strong>${topFastestContact.avgReplyFormatted}</strong>).` : `Fastest responder: <strong>${topFastestContact.name}</strong> (avg <strong>${topFastestContact.avgReplyFormatted}</strong>).`, isVi ? 'Họ → Tôi trong 24 giờ' : 'Them → Me reply delta')}
+            ${renderCard(ICONS.ghost, isVi ? 'Khoảng Lặng Lâu Nhất' : 'The Longest Hiatus', isVi ? `Khoảng im ắng dài nhất với <strong>${topGhostContact.name}</strong> là <strong>${topGhostContact.maxGhostingGapDays.toLocaleString()} ngày</strong>.` : `Longest hiatus with <strong>${topGhostContact.name}</strong>: <strong>${topGhostContact.maxGhostingGapDays.toLocaleString()} days</strong>.`, isVi ? 'Khoảng cách giữa 2 tương tác' : 'Max silence gap')}
+            ${renderCard(ICONS.sun, isVi ? 'Tiếng Chim Hót Đầu Ngày' : 'Early Bird Connection', isVi ? `Quán quân dậy sớm: <strong>${topEarlyBirdContact.name}</strong> (${topEarlyBirdContact.earlyBirdMsgs.toLocaleString()} tin lúc 5h - 9h sáng).` : `Morning champion: <strong>${topEarlyBirdContact.name}</strong> (${topEarlyBirdContact.earlyBirdMsgs.toLocaleString()} msgs at 5 AM - 9 AM).`, isVi ? 'Khung giờ 5:00 AM - 9:00 AM' : '5:00 AM - 9:00 AM')}
+            ${renderCard(ICONS.balance, isVi ? 'Cân Bằng Hoàn Hảo' : 'Harmonious Equilibrium', isVi ? `Mối quan hệ cân bằng nhất: <strong>${topBalanceContact.name}</strong> (${topBalanceContact.myShare.toFixed(1)}% vs ${topBalanceContact.oppShare.toFixed(1)}%).` : `Most balanced connection: <strong>${topBalanceContact.name}</strong> (${topBalanceContact.myShare.toFixed(1)}% vs ${topBalanceContact.oppShare.toFixed(1)}%).`, isVi ? 'Tỷ lệ cho & nhận 50/50' : '50/50 reciprocal ratio')}
+            ${renderCard(ICONS.zap, isVi ? 'Cơn Mưa Tin Nhắn' : 'Rapid-Fire Barrage', isVi ? `Kỷ lục chuỗi liên thanh: <strong>${topBurstContact.name}</strong> (${topBurstContact.maxBurstCount} tin liên tiếp)!` : `Longest burst record: <strong>${topBurstContact.name}</strong> (${topBurstContact.maxBurstCount} msgs in a row)!`, isVi ? 'Tin nhắn liên tiếp không ngắt' : 'Max consecutive messages')}
+            ${renderCard(ICONS.fire, isVi ? 'Sợi Dây Bất Tận' : 'The Unbroken Connection', isVi ? `Chuỗi ngày nhắn dài nhất: <strong>${topStreakContact.name}</strong> (<strong>${topStreakContact.maxStreak} ngày liên tiếp</strong>)!` : `Longest daily streak: <strong>${topStreakContact.name}</strong> (<strong>${topStreakContact.maxStreak} straight days</strong>)!`, isVi ? 'Ngày nhắn liên tục không đứt' : 'Consecutive active days')}
+          </div>
+        </div>
+
+        <!-- TAB 1: ALL CATEGORIES -->
+        <div id="tab-all" class="tab-content-panel">
+          <div class="panel-section-header">
+            <div class="panel-section-title">${isVi ? 'Bảng Xếp Hạng & Danh Mục' : 'Leaderboard & Categories'}</div>
+          </div>
+          <div class="categories-spatial-grid">${categoriesHtml}</div>
+        </div>
+
+        <!-- TAB 2: GRAPHS -->
+        <div id="tab-graph" class="tab-content-panel">
+          <div class="panel-section-header">
+            <div>
+              <div class="panel-section-title">${isVi ? 'Biểu Đồ Dòng Thời Gian' : 'Timeline Trends & Activity Graphs'}</div>
+              <p style="font-size:0.88rem; color:var(--text-muted); margin-top:4px;">
+                ${isVi ? 'Theo dõi quỹ đạo tăng trưởng và khối lượng tin nhắn theo thời gian.' : 'Interactive time-series trajectories tracking volume and rhythms across your top contacts.'}
+              </p>
+            </div>
+          </div>
+          <div class="graph-control-bar">
+            <div class="graph-ctrl-item">
+              <label class="graph-ctrl-label" for="spatial-metric">${isVi ? 'Chỉ số:' : 'Metric:'}</label>
+              <select id="spatial-metric" class="graph-select-box" onchange="renderSpatialChart()">
+                <option value="all">${isVi ? 'Tổng tin nhắn (Cả 2 bên)' : 'Total Messages (Both Sides)'}</option>
+                <option value="growth">${isVi ? 'Tăng trưởng tích lũy' : 'Cumulative Growth (All-Time)'}</option>
+                <option value="opp">${isVi ? 'Tin đối phương gửi' : 'Sent by Them'}</option>
+                <option value="my">${isVi ? 'Tin do bạn gửi' : 'Sent by You'}</option>
+                <option value="night">${isVi ? 'Tin nhắn đêm (23h - 4h)' : 'Night Owl (11 PM - 4 AM)'}</option>
+                <option value="quality">${isVi ? 'Tin nhắn chất lượng' : 'Substantive Messages'}</option>
+                <option value="chars">${isVi ? 'Lượng ký tự đã gõ' : 'Characters Typed'}</option>
+              </select>
+            </div>
+            <div class="graph-ctrl-item">
+              <label class="graph-ctrl-label" for="spatial-topn">${isVi ? 'Hiển thị:' : 'Show Lines:'}</label>
+              <select id="spatial-topn" class="graph-select-box" onchange="renderSpatialChart()">
+                <option value="5">Top 5</option>
+                <option value="10" selected>Top 10</option>
+                <option value="15">Top 15</option>
+                <option value="20">Top 20</option>
+                <option value="999">${isVi ? 'Tất cả' : 'All'}</option>
+              </select>
+            </div>
+            <div class="graph-ctrl-item">
+              <label class="graph-ctrl-label" for="spatial-group">${isVi ? 'Gộp theo:' : 'Group by:'}</label>
+              <select id="spatial-group" class="graph-select-box" onchange="renderSpatialChart()">
+                <option value="weekly" selected>${isVi ? 'Hàng tuần' : 'Weekly'}</option>
+                <option value="monthly">${isVi ? 'Hàng tháng' : 'Monthly'}</option>
+                <option value="daily">${isVi ? 'Hàng ngày' : 'Daily'}</option>
+              </select>
+            </div>
+          </div>
+          <div class="graph-canvas-frame">
+            <canvas id="spatialChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- TAB 3: OPPOSITE ONLY -->
+        <div id="tab-opposite" class="tab-content-panel">
+          <div class="panel-section-header">
+            <div class="panel-section-title">${isVi ? 'Từ Phía Đối Phương' : 'Opposite Only (From Them)'}</div>
+            <input type="text" class="search-input-direct" placeholder="${isVi ? 'Tìm kiếm bạn bè...' : 'Search contacts...'}" onkeyup="filterSpatialTable('table-opposite-spatial', this.value)">
+          </div>
+          <div class="table-spatial-frame">
+            <table class="spatial-table" id="table-opposite-spatial">
+              <thead>
+                <tr>
+                  <th class="spatial-th">#</th>
+                  <th class="spatial-th">${isVi ? 'Người trò chuyện' : 'Contact'}</th>
+                  <th class="spatial-th">${isVi ? 'Họ gửi' : 'Msgs Sent'}</th>
+                  <th class="spatial-th">${isVi ? 'Chất lượng' : 'Quality'}</th>
+                  <th class="spatial-th">${isVi ? 'Ký tự' : 'Chars'}</th>
+                  <th class="spatial-th">${isVi ? 'Tốc độ rep' : 'Avg Reply'}</th>
+                  <th class="spatial-th">${isVi ? 'Tin đêm' : 'Night msgs'}</th>
+                  <th class="spatial-th">${isVi ? 'Bắn tin' : 'Max Burst'}</th>
+                  <th class="spatial-th">${isVi ? 'Tỷ trọng họ' : '% Share'}</th>
+                </tr>
+              </thead>
+              <tbody>${oppTableRows}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 4: ALL CONVERSATIONS -->
+        <div id="tab-raw" class="tab-content-panel">
+          <div class="panel-section-header">
+            <div class="panel-section-title">${isVi ? 'Tất Cả Cuộc Trò Chuyện' : 'All Conversations'}</div>
+            <input type="text" class="search-input-direct" placeholder="${isVi ? 'Tìm kiếm bạn bè...' : 'Search contacts...'}" onkeyup="filterSpatialTable('table-raw-spatial', this.value)">
+          </div>
+          <div class="table-spatial-frame">
+            <table class="spatial-table" id="table-raw-spatial">
+              <thead>
+                <tr>
+                  <th class="spatial-th">#</th>
+                  <th class="spatial-th">${isVi ? 'Người trò chuyện' : 'Contact'}</th>
+                  <th class="spatial-th">${isVi ? 'Tổng tin' : 'Total'}</th>
+                  <th class="spatial-th">${isVi ? 'Bạn gửi' : 'You'}</th>
+                  <th class="spatial-th">${isVi ? 'Họ gửi' : 'Them'}</th>
+                  <th class="spatial-th">${isVi ? 'Ký tự' : 'Chars'}</th>
+                  <th class="spatial-th">${isVi ? 'Chất lượng' : 'Quality'}</th>
+                  <th class="spatial-th">${isVi ? 'Số ngày' : 'Days'}</th>
+                  <th class="spatial-th">${isVi ? 'Chuỗi ngày' : 'Streak'}</th>
+                  <th class="spatial-th">${isVi ? 'Từ ngày' : 'First'}</th>
+                  <th class="spatial-th">${isVi ? 'Đến ngày' : 'Last'}</th>
+                </tr>
+              </thead>
+              <tbody>${rawTableRows}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      renderSpatialChart();
+    }
+
+    function switchSpatialTab(btn, tabId) {
+      document.querySelectorAll('.boundless-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content-panel').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+      if (tabId === 'tab-graph') {
+        renderSpatialChart();
+      }
+    }
+
+    function toggleSpatialSpoilers(isSpoiled) {
+      document.querySelectorAll('.insight-spatial-card').forEach(card => {
+        if (isSpoiled) card.classList.add('spoiled');
+        else card.classList.remove('spoiled');
+      });
+    }
+
+    function revealCardSpoiler(card) {
+      if (card.classList.contains('spoiled')) {
+        card.classList.remove('spoiled');
+      }
+    }
+
+    async function saveCardAsImage(btn, event) {
+      if (event) event.stopPropagation();
+      const card = btn.closest('.insight-spatial-card');
+      if (!card) return;
+
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>';
+      btn.style.pointerEvents = 'none';
+
+      const hadSpoiled = card.classList.contains('spoiled');
+      if (hadSpoiled) card.classList.remove('spoiled');
+
+      const footerEl = card.querySelector('.card-bottom-footer');
+      const originalFooterDisplay = footerEl ? footerEl.style.display : '';
+      if (footerEl) footerEl.style.display = 'none';
+
+      const watermark = card.querySelector('.card-export-watermark');
+      if (watermark) watermark.style.display = 'block';
+      btn.style.opacity = '0';
+
+      try {
+        const canvas = await html2canvas(card, {
+          backgroundColor: '#111114',
+          scale: 2,
+          useCORS: true,
+          logging: false
+        });
+
+        const link = document.createElement('a');
+        const tagEl = card.querySelector('.card-insight-pill span');
+        const rawTag = tagEl ? tagEl.textContent : 'buddies-wrapped';
+        const safeTag = rawTag.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        link.download = 'buddies-wrapped-' + (safeTag || 'card') + '.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (err) {
+        console.error('Failed to capture card image:', err);
+      } finally {
+        btn.innerHTML = originalHtml;
+        btn.style.pointerEvents = '';
+        btn.style.opacity = '1';
+        if (footerEl) footerEl.style.display = originalFooterDisplay;
+        if (watermark) watermark.style.display = '';
+        if (hadSpoiled && document.getElementById('spoiler-toggle-box')?.checked) {
+          card.classList.add('spoiled');
+        }
+      }
+    }
+
+    function renderSpatialChart() {
+      const canvas = document.getElementById('spatialChartCanvas');
+      if (!canvas || !globalOverviewData) return;
+
+      const metric = document.getElementById('spatial-metric')?.value || 'all';
+      const topN = parseInt(document.getElementById('spatial-topn')?.value || '10', 10);
+      const grouping = document.getElementById('spatial-group')?.value || 'weekly';
+      const isVi = globalOverviewData.lang === 'VI';
+
+      const PALETTE = [
+        '#E07A5F', '#38BDF8', '#F4A261', '#2A9D8F', '#A78BFA',
+        '#FB7185', '#34D399', '#FBBF24', '#818CF8', '#4ADE80',
+        '#60A5FA', '#E879F9', '#F97316', '#A3E635'
+      ];
+
+      const sortedContacts = [...globalOverviewData.conversations]
+        .sort((a, b) => b.totalMsgs - a.totalMsgs)
+        .slice(0, topN);
+
+      const allDatesSet = new Set();
+      sortedContacts.forEach(c => {
+        Object.keys(c.dayCounts || {}).forEach(d => allDatesSet.add(d));
+      });
+      const sortedDates = Array.from(allDatesSet).sort();
+      if (sortedDates.length === 0) return;
+
+      const dateGroups = {};
+      let labels = [];
+
+      if (grouping === 'monthly') {
+        sortedDates.forEach(d => {
+          const mKey = d.slice(0, 7);
+          if (!dateGroups[mKey]) dateGroups[mKey] = [];
+          dateGroups[mKey].push(d);
+        });
+        labels = Object.keys(dateGroups).sort();
+      } else if (grouping === 'weekly') {
+        sortedDates.forEach(d => {
+          const dt = new Date(d);
+          const day = dt.getDay();
+          const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+          const monday = new Date(dt.setDate(diff));
+          const wKey = monday.toISOString().slice(0, 10);
+          if (!dateGroups[wKey]) dateGroups[wKey] = [];
+          dateGroups[wKey].push(d);
+        });
+        labels = Object.keys(dateGroups).sort();
+      } else {
+        labels = sortedDates;
+        sortedDates.forEach(d => { dateGroups[d] = [d]; });
+      }
+
+      const datasets = sortedContacts.map((contact, idx) => {
+        const color = PALETTE[idx % PALETTE.length];
+        const dayMap = (metric === 'opp') ? (contact.dayCountsOpp || {}) :
+                       (metric === 'my') ? (contact.dayCountsMy || {}) :
+                       (metric === 'night') ? (contact.dayCountsNight || {}) :
+                       (metric === 'quality') ? (contact.dayCountsQuality || {}) :
+                       (metric === 'chars') ? (contact.dayCountsChars || {}) :
+                       (contact.dayCounts || {});
+
+        let runningSum = 0;
+        const dataPoints = labels.map(labelKey => {
+          const datesInGroup = dateGroups[labelKey] || [];
+          let periodSum = 0;
+          datesInGroup.forEach(d => { periodSum += (dayMap[d] || 0); });
+          if (metric === 'growth') {
+            runningSum += periodSum;
+            return runningSum;
+          }
+          return periodSum;
+        });
+
+        return {
+          label: contact.name,
+          data: dataPoints,
+          borderColor: color,
+          backgroundColor: color,
+          borderWidth: 2.2,
+          pointRadius: labels.length > 50 ? 0 : 2,
+          pointHoverRadius: 6,
+          tension: 0.35,
+          fill: false
+        };
+      });
+
+      if (activeChartInstance) activeChartInstance.destroy();
+
+      activeChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                color: '#FAF9F5',
+                font: { family: "Anthropic Sans, Plus Jakarta Sans, sans-serif", size: 12 },
+                boxWidth: 12,
+                padding: 14,
+                usePointStyle: false
+              }
+            },
+            tooltip: {
+              backgroundColor: '#111114',
+              titleColor: '#FAF9F5',
+              bodyColor: '#A3A199',
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              padding: 12,
+              titleFont: { family: "Anthropic Sans, Plus Jakarta Sans, sans-serif", size: 13, weight: 'bold' },
+              bodyFont: { family: "Anthropic Mono, JetBrains Mono, monospace", size: 12 },
+              callbacks: {
+                label: function(ctx) {
+                  const val = ctx.parsed.y || 0;
+                  const unit = metric === 'chars' ? (isVi ? ' ký tự' : ' chars') : (isVi ? ' tin' : ' msgs');
+                  return ' ' + ctx.dataset.label + ': ' + val.toLocaleString() + unit;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: {
+                color: '#6E6C65',
+                font: { family: "Anthropic Mono, JetBrains Mono, monospace", size: 11 },
+                maxRotation: 45
+              }
+            },
+            y: {
+              grid: { color: 'rgba(255,255,255,0.04)' },
+              ticks: {
+                color: '#6E6C65',
+                font: { family: "Anthropic Mono, JetBrains Mono, monospace", size: 11 },
+                callback: function(val) {
+                  if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+                  if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+                  return val;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function filterSpatialTable(tableId, query) {
+      const q = query.toLowerCase().trim();
+      const rows = document.querySelectorAll('#' + tableId + ' tbody tr');
+      rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+
+    async function shareBuddiesWrapped() {
+      const isVi = currentLang === 'VI';
+      const shareData = {
+        title: 'Buddies Wrapped',
+        text: isVi ? 'Xem lại toàn bộ kỷ niệm tin nhắn Messenger cùng Buddies Wrapped!' : 'Explore your Facebook Messenger chat analytics with Buddies Wrapped!',
+        url: 'https://bit.ly/buddies-wrapped'
+      };
+
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+        } catch (err) {
+          if (err && err.name !== 'AbortError') {
+            copyShareUrl();
+          }
+        }
+      } else {
+        copyShareUrl();
+      }
+    }
+
+    function copyShareUrl() {
+      const isVi = currentLang === 'VI';
+      const shareUrl = 'https://bit.ly/buddies-wrapped';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          showToast(isVi ? 'Đã sao chép liên kết chia sẻ: bit.ly/buddies-wrapped' : 'Copied share link: bit.ly/buddies-wrapped');
+        }).catch(() => {
+          prompt(isVi ? 'Sao chép liên kết chia sẻ:' : 'Copy share link:', shareUrl);
+        });
+      } else {
+        prompt(isVi ? 'Sao chép liên kết chia sẻ:' : 'Copy share link:', shareUrl);
+      }
+    }
+
+    // Init URL Lang
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const urlLang = params.get('lang')?.toUpperCase();
+        if (urlLang === 'VI' || window.location.hash.toLowerCase().includes('vi')) {
+          switchLanguage('VI');
+        } else {
+          switchLanguage('EN');
+        }
+      } catch (_e) {}
+    });
+  </script>
+</body>
+</html>

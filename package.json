@@ -1,0 +1,37 @@
+{
+  "name": "buddies-wrapped",
+  "version": "1.0.2",
+  "description": "Interactive Chat Archive Analytics & Leaderboard (Buddies Wrapped)",
+  "main": "index.js",
+  "bin": {
+    "buddies-wrapped": "bin/index.js"
+  },
+  "files": [
+    "bin",
+    "index.js",
+    "index.html",
+    "LICENSE",
+    "README.md",
+    "README.vi.md"
+  ],
+  "keywords": [
+    "chat",
+    "wrapped",
+    "facebook",
+    "messenger",
+    "analytics",
+    "leaderboard",
+    "timeline",
+    "statistics"
+  ],
+  "author": "Duncuti",
+  "license": "MIT",
+  "homepage": "https://buddieswrapped.duongnx.tech",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duongnguyen16/buddies-wrapped.git"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
